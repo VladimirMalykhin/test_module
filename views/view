@@ -1,0 +1,421 @@
+<style>
+    ul.last-z {
+        list-style: none;
+        margin:0;
+        padding:0;
+    }
+    ul.last-z li {
+        padding: 5px 10px;
+        margin:0;
+    }
+    ul.last-z li:nth-child(even) {
+        background: #ccc;
+    }
+
+    input, select {
+        height: auto !important;
+    }
+
+    .sectionBody {
+        padding-left: 10px;
+    }
+
+    #sSelect{
+        display: block;
+        padding: .375rem 2.25rem .375rem .75rem !important;
+        -moz-padding-start: calc(0.75rem - 3px);
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        background-color: #fff;
+        background-repeat: no-repeat;
+        background-position: right .75rem center;
+        background-size: 16px 12px;
+        border-radius: .375rem;
+        transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+        border: 1px solid #777 !important;
+      }
+
+
+    .table{
+        --bs-table-color: var(--bs-body-color);
+        --bs-table-bg: transparent;
+        --bs-table-border-color: var(--bs-border-color);
+        --bs-table-accent-bg: transparent;
+        --bs-table-striped-color: var(--bs-body-color);
+        --bs-table-striped-bg: rgba(0, 0, 0, 0.05);
+        --bs-table-active-color: var(--bs-body-color);
+        --bs-table-active-bg: rgba(0, 0, 0, 0.1);
+        --bs-table-hover-color: var(--bs-body-color);
+        --bs-table-hover-bg: rgba(0, 0, 0, 0.075);
+        width: 100%;
+        margin-bottom: 1rem;
+        color: var(--bs-table-color);
+        vertical-align: top;
+        border-color: var(--bs-table-border-color);
+        border-collapse: collapse;
+    }
+
+
+    .table tr:nth-child(2n) {
+      background: #ccc;
+    }
+
+    .table tr {
+        height: 89px;
+    }
+
+
+    .editingItem{
+        --bs-btn-padding-x: 0.75rem;
+        --bs-btn-padding-y: 0.375rem;
+        --bs-btn-font-family: ;
+        --bs-btn-font-size: 1rem;
+        --bs-btn-font-weight: 400;
+        --bs-btn-line-height: 1.5;
+        --bs-btn-color: #212529;
+        --bs-btn-bg: transparent;
+        --bs-btn-border-width: var(--bs-border-width);
+        --bs-btn-border-color: transparent;
+        --bs-btn-border-radius: 0.375rem;
+        --bs-btn-hover-border-color: transparent;
+        --bs-btn-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),0 1px 1px rgba(0, 0, 0, 0.075);
+        --bs-btn-disabled-opacity: 0.65;
+        --bs-btn-focus-box-shadow: 0 0 0 0.25rem rgba(var(--bs-btn-focus-shadow-rgb), .5);
+        display: inline-block;
+        padding: var(--bs-btn-padding-y) var(--bs-btn-padding-x);
+        font-family: var(--bs-btn-font-family);
+        font-size: 10px;
+        font-weight: var(--bs-btn-font-weight);
+        line-height: var(--bs-btn-line-height);
+        color: var(--bs-btn-color);
+        text-align: center;
+        text-decoration: none;
+        vertical-align: middle;
+        cursor: pointer;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        user-select: none;
+        border: var(--bs-btn-border-width) solid var(--bs-btn-border-color);
+        border-radius: var(--bs-btn-border-radius);
+        background-color: #278f49;
+        transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+        --bs-btn-color: #fff;
+        --bs-btn-bg: #dc3545;
+        --bs-btn-border-color: #dc3545;
+        --bs-btn-hover-color: #fff;
+        --bs-btn-hover-bg: #bb2d3b;
+        --bs-btn-hover-border-color: #b02a37;
+        --bs-btn-focus-shadow-rgb: 225,83,97;
+        --bs-btn-active-color: #fff;
+        --bs-btn-active-bg: #b02a37;
+        --bs-btn-active-border-color: #a52834;
+        --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+        --bs-btn-disabled-color: #fff;
+        --bs-btn-disabled-bg: #dc3545;
+        --bs-btn-disabled-border-color: #dc3545;
+    }
+
+
+    .previewItem{
+        --bs-btn-padding-x: 0.75rem;
+        --bs-btn-padding-y: 0.375rem;
+        --bs-btn-font-family: ;
+        --bs-btn-font-size: 1rem;
+        --bs-btn-font-weight: 400;
+        --bs-btn-line-height: 1.5;
+        --bs-btn-color: #212529;
+        --bs-btn-bg: transparent;
+        --bs-btn-border-width: var(--bs-border-width);
+        --bs-btn-border-color: transparent;
+        --bs-btn-border-radius: 0.375rem;
+        --bs-btn-hover-border-color: transparent;
+        --bs-btn-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),0 1px 1px rgba(0, 0, 0, 0.075);
+        --bs-btn-disabled-opacity: 0.65;
+        --bs-btn-focus-box-shadow: 0 0 0 0.25rem rgba(var(--bs-btn-focus-shadow-rgb), .5);
+        display: inline-block;
+        padding: var(--bs-btn-padding-y) var(--bs-btn-padding-x);
+        font-family: var(--bs-btn-font-family);
+        font-size: 10px;
+        font-weight: var(--bs-btn-font-weight);
+        line-height: var(--bs-btn-line-height);
+        color: var(--bs-btn-color);
+        text-align: center;
+        text-decoration: none;
+        vertical-align: middle;
+        cursor: pointer;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        user-select: none;
+        border: var(--bs-btn-border-width) solid var(--bs-btn-border-color);
+        border-radius: var(--bs-btn-border-radius);
+        background-color: #175c8b;
+        transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+        --bs-btn-color: #fff;
+        --bs-btn-bg: #175c8b;
+        --bs-btn-border-color: #175c8b;
+        --bs-btn-hover-color: #fff;
+        --bs-btn-hover-bg: #175c8b;
+        --bs-btn-hover-border-color: #175c8b;
+        --bs-btn-focus-shadow-rgb: 225,83,97;
+        --bs-btn-active-color: #fff;
+        --bs-btn-active-bg: #175c8b;
+        --bs-btn-active-border-color: #175c8b;
+        --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+        --bs-btn-disabled-color: #fff;
+        --bs-btn-disabled-bg: #dc3545;
+        --bs-btn-disabled-border-color: #dc3545;
+    }
+
+      .actions{
+        display: flex;
+        margin-top: 20px;
+
+      }
+
+    .documentTitle{
+        font-size: 17px;
+    }
+
+    .documentInfo{
+        padding: 10px;
+    }
+
+    .centerData{
+        text-align: center;
+    }
+
+    .comment{
+        margin-top: 7px;
+        font-size: 15px;
+    }
+
+    
+    .main-row{
+        display: flex;
+        width: 80%;
+    }
+    .title-page{
+        width: 50%;
+    }
+
+    .documents-sign{
+        width: 50%;
+        text-align: right;
+    }
+
+    .tab {
+    overflow: hidden;
+    border: 1px solid #ccc;
+    background-color: #f1f1f1;
+}
+
+/* Style the buttons that are used to open the tab content */
+.tab button {
+    background-color: inherit;
+    float: left;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 14px 16px;
+    transition: 0.3s;
+}
+
+/* Change background color of buttons on hover */
+.tab button:hover {
+    background-color: #ddd;
+}
+
+/* Create an active/current tablink class */
+#defaultOpen {
+    background-color: #ccc;
+}
+
+/* Style the tab content */
+.tabcontent {
+    display: none;
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    border-top: none;
+}
+    
+
+</style>
+
+<div class="section section-spravka">
+    <div class="main-row">
+        <div class="title-page">
+           <h3>Электронный деканат</h3> 
+        </div>
+    </div>
+
+    
+    <? if($_SESSION['user']['ecp'] == false) echo '<div style="background:#FCF3A1;padding:15px;width:450px;border-radius:8px;-webkit-border-radius:8px;-moz-border-radius:8px;text-align:center;">
+У вас нет действующей электронной подписи.<br /> <br /> 
+<a href="/spravka1c/add/?type=sign_new" class="button" style="background:red;cursor: pointer;display: inline-block;padding: 4px 12px;-webkit-border-radius: 4px;margin-left: 10px;color: #fff;margin-top: -25px;text-align: center;">Получить ЭП</a>
+</div>';
+        /*
+        elseif($_SESSION['user']['ecp']['original_doc'] == false){
+            echo '<span >Для получения электронной подписи требуется оригинал подписанного согласия</span><br />';
+        }*/
+        else {
+        echo '<span >У вас есть действующая электронная подпись</span><br />
+        <span>Дата начала действия: ' . Helper::ConvertDate($_SESSION['user']['ecp']['date_begin'], 'd.m.Y') . '</span><br/>
+        <span style="display:block; margin-bottom:30px">Дата окончания действия: ' . Helper::ConvertDate($_SESSION['user']['ecp']['date_end'], 'd.m.Y') . '</span><br/>';
+    }?>
+    <div class="sectionBody" style="margin-top:20px">
+
+<h4 style="float:left;margin: 0 10px 0 0;font-weight: normal;font-size: 16px;">Заказать:</h4><br/>
+
+<form action="/spravka1c/add/" method="Get" style="float: left">
+    <select id="sSelect" name="type">
+        <option value=""></option>
+        <?foreach($data['typeList'] as $type => $title):?>
+            <option value="<?=$type?>"><?=$title?></option>
+        <?endforeach;?>
+    </select>
+
+</form>
+
+<div style="clear:both;margin-bottom: 50px"></div>
+
+<div class="tab">
+  <button class="tablinks active" onclick="openCity(event, 'Apps')" id="defaultOpen">Заявления</button>
+  <button class="tablinks" onclick="openCity(event, 'Docs')">Документы</button>
+</div>
+
+<div id="Apps" class="tabcontent">
+  <?if ($data['lastList']) {?>
+    <table class="table table-striped">
+
+      <tbody>
+        <?foreach($data['lastList'] as $spravka):?>
+            <tr>
+              <td class="centerData"><?=Helper::ConvertDate($spravka['datetime'], 'd.m.Y')?></td>
+              <td class = "documentInfo"><div class="documentTitle"><?
+              $titleDoc = ($spravka['type'] == 'sign_new') ? 'Заявление о предоставлении электронной подписи' : $data['typeList'][$spravka['type']]; 
+              echo $titleDoc;?></div>
+                <div class="actions">
+                    <?if (($spravka['type'] == 'obuchenie')  && $spravka['status'] == 4) {?>
+                        <a href="/spravka1c/download/<?=$spravka['id']?>"><button class="editingItem">Скачать файлы</button></a>
+                    <?}?> 
+                    <?if ($spravka['status'] == 8) {?>
+                        <a href="/spravka1c/fill/<?=$spravka['id']?>"><button class="editingItem">Заполнить заявление</button></a>
+                    <?}?> 
+                    <?if ($spravka['type'] != 'obuchenie' && $spravka['type'] != 'sign_new' && !(in_array($spravka['status'], [1,7,8,9]))) {?>
+                        <a target="_blank" href="/spravka1c/pdf/<?=$spravka['id']?>"><button class="previewItem" >Печатная версия</button></a>
+                        
+                    <?}?>
+                    <?if ($spravka['type'] == 'discount' && (in_array($spravka['status'], [11]))) {?>
+                        <a href="/spravka1c/pay/<?=$spravka['id']?>"><button class="editingItem" style="margin-left:10px">Квитанция на оплату</button></a>
+                        <a class="QR" href="/spravka1c/qrcodeview/<?=$spravka['id']?>">
+                            <span class="btn-border button editingItem" style="margin-left:10px">Оплата QR</span></a>
+                        <div class="popup-fade" style="display: none;">
+                            <div class="popup">
+                                <a class="popup-close" href="#"><i class="fa fa-times" style="color: black;"></i></a>
+                                <p style="text-align: center;font-weight: 600;">Откройте приложение Сбербанк и отсканируйте QR код</p>
+                                <p><iframe src="/spravka1c/qrcodeview/<?=$spravka['id']?>" frameborder="0" style="width: 250px;height: 250px;margin: 0 17%;" scrolling="no"></iframe></p>
+                            </div>      
+                        </div>
+                    <?}?> 
+                    <?if (in_array($spravka['status'], [3, 13]) || $spravka['status'] == 'Отправлено на подпись') {?>
+                        <a href="/spravka1c/signappform/<?=$spravka['id']?>"><button class="editingItem" style="margin-left:10px">Подписать</button></a>
+                    <?}?>    
+                    
+                </div>
+                
+                <?if ($spravka['comment'] != '') {
+                    echo '
+                    <div class="comment">
+                        <span class="commentShow">'.$spravka['comment'].'</span>
+                    </div>';
+                } ?>
+              </td>
+              <td class="centerData"><?=spravka1cHelper::getStatusName($spravka['status'])?></td>
+            </tr>
+        <?endforeach;?>
+      </tbody>
+
+  </table>
+    
+<?} else {?>
+    <p>Нет данных</p>
+<?}?>
+</div>
+
+<div id="Docs" class="tabcontent">
+</div>
+
+    </div>
+</div>
+
+
+
+
+<style>
+.popup {position: fixed;top: 20%;left: 50%;padding: 20px;width: 360px;margin-left: -200px;background: #fff;border: 1px solid #278f49;border-radius: 4px; z-index: 99999;opacity: 1;}
+.popup-close {position: absolute;top: 10px;right: 10px;}
+.popup-fade:before {content: '';background: #000;position: fixed; left: 0;top: 0;width: 100%; height: 100%;opacity: 0.7;z-index: 9999;}
+</style>
+<script type="text/javascript">
+    $("#defaultOpen").click();
+    $('#sSelect').change(function() {
+        var val = $(this).find('option:selected').val();
+        if (val)
+        {
+            $(this).parents('form').eq(0).submit();
+        }
+    });
+
+     $(document).ready(function() {
+        $('.QR').on('click', function(e) {
+            e.preventDefault();
+            $(this).parents('.actions').find('.popup-fade').fadeIn();
+        });
+
+        $('.popup-close').click(function() {
+            $(this).parents('.popup-fade').fadeOut();
+            return false;
+        });
+
+        $(document).keydown(function(e) {
+            if (e.keyCode === 27) {
+                e.stopPropagation();
+                $('.popup-fade').fadeOut();
+            }
+        });
+
+        $('.popup-fade').click(function(e) {
+            if ($(e.target).closest('.popup').length == 0) {
+                $(this).fadeOut();                  
+            }
+        }); 
+
+
+
+    });
+
+
+function openCity(evt, cityName) {
+    if(cityName == 'Docs'){
+        window.location.href = '/spravka1c/documents';
+    } else {
+        var i, tabcontent, tablinks;
+
+        tabcontent = document.getElementsByClassName("tabcontent");
+
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+
+        tablinks = document.getElementsByClassName("tablinks");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+
+        document.getElementById(cityName).style.display = "block";
+    }
+    
+
+}
+</script>

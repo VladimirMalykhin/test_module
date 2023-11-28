@@ -1,0 +1,50 @@
+<?php
+
+
+include_once('module/core/form/validators/file.validator');
+include_once('module/spravka1c/array.validator');
+include_once('module/spravka1c/classes/base/BaseDocument.class');
+
+class SignNew extends BaseDocument{
+	private $type = "sign_new";
+	private $token;
+	private $allowedStatuses = [
+		"Является студентом"
+	];
+
+
+	public function __construct($data){
+		$this->token = $data['token'];
+	}
+
+
+	public function Validate(){
+		$dataValidated = [];
+		$dataValidated = [
+			['value' => $this->token, 'label' => 'Токен', 'validators' => array(new textLengthRangeValidator(3, 50))]
+		];
+
+		($this->token != $_SESSION['user']['spravka1c']['ecp_code']) ? die("Токены не совпадают") : null;
+		
+		return parent::Validate($dataValidated);
+	}
+
+
+	public function GetData1C($diplomaId)
+	{
+
+		return [
+			'student_id' => $_SESSION['user']['1c_id'], 
+			'mode' => 'new', 
+			'confirmed' => 1,
+			'file' => []
+		];
+	}
+
+
+    public function GetErrors()
+    {
+    	return parent::GetErrors();
+    }
+
+}

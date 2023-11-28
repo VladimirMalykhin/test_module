@@ -1,0 +1,23 @@
+<link rel="stylesheet" href="/css/commentView.css">
+<link rel="stylesheet" href="/css/modal.css">
+<script src="/js/modal.js"></script>
+<style>
+	.commentView{
+		display: none;
+	}
+</style>
+<div class="commentView" id="comment<?=$spravka['id']?>">
+<center><h3>Комментарий</h3></center>
+<p><?=$spravka['comment'] ?></p>
+</div>
+
+<script>
+
+	$('.commentShow').click(function(){
+		$('#comment<?=$spravka['id']?>').modal({closeExisting: false, escapeClose: false, clickClose: false});
+	});
+
+
+
+</script>
+

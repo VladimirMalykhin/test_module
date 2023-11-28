@@ -1,0 +1,63 @@
+<?php
+
+include_once('validators/textLengthRange.validator');
+include_once('validators/int.validator');
+include_once('validators/bool.validator');
+include_once('validators/enum.validator');
+include_once('validators/date.validator');
+include_once('validators/require.validator');
+include_once('validators/file.validator');
+include_once('module/spravka1c/array.validator');
+include_once('module/spravka1c/classes/base/BaseDocument.class');
+
+class Transfer extends BaseDocument{
+	private $type = "000000010";
+	private $educationLevel = "";
+	private $faculty = "";
+	private $speciality = "";
+	private $profile = "";
+	private $educationForm = "";
+	private $educationFormat = "";
+	private $allowedStatuses = [
+		"Является студентом"
+	];
+
+
+	public function __construct($data){
+		$this->educationLevel = $data['level'];
+		$this->faculty = $data['faculty'];
+		$this->speciality = $data['specialty'];
+		$this->profile = $data['profile'];
+		$this->educationForm = $data['form'];
+		$this->educationFormat = $data['format'];
+	}
+
+
+	public function Validate(){
+		
+		parent::validateStatus($this->allowedStatuses, spravka1c::$asr1C);
+		$dataValidated = [
+			['value' => $this->educationLevel, 'label' => 'Уровень образования', 'validators' => array(new enumValidator($_SESSION['user']['spravka1c']['transfer']['education_selected']))],
+			['value' => $this->faculty, 'label' => 'Факультет', 'validators' => array(new enumValidator($_SESSION['user']['spravka1c']['transfer']['faculty_selected']))],
+			['value' => $this->speciality, 'label' => 'Специальность', 'validators' => array(new enumValidator($_SESSION['user']['spravka1c']['transfer']['speciality_selected']))],
+			['value' => $this->profile, 'label' => 'Профиль', 'validators' => array(new enumValidator($_SESSION['user']['spravka1c']['transfer']['profile_selected']))],
+			['value' => $this->educationForm, 'label' => 'Форма обучения', 'validators' => array(new enumValidator($_SESSION['user']['spravka1c']['transfer']['form_selected']))],
+			['value' => $this->educationFormat, 'label' => 'Формат обучения', 'validators' => array(new enumValidator($_SESSION['user']['spravka1c']['transfer']['formats_existed']))]
+		];
+		return parent::Validate($dataValidated);
+	}
+
+
+	public function GetData1C($diplomaId)
+	{
+
+		return ['student_id' => $_SESSION['user']['zbook'], 'type' => $this->type, 'education_level' => $this->educationLevel, 'faculty' => $this->faculty, 'speciality' => $this->speciality, 'profile' => $this->profile, 'education_form' => $this->educationForm, 'education_format' => $this->educationFormat];
+	}
+
+
+    public function GetErrors()
+    {
+    	return parent::GetErrors();
+    }
+
+}

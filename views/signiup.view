@@ -1,0 +1,497 @@
+<style>
+  form p.required label > span:first-child:after {
+    content: "*";
+    color: #d90f00;
+    font-weight: bold;
+  }
+  .error-box {
+    background-color: #ffc0cb;
+    border: 1px solid maroon;
+    border-radius: 5px 5px 5px 5px;
+    box-shadow: 0 1px 1px #ffffff inset;
+    margin: 0.5em 0 1.3em;
+    padding: 10px 10px 10px 25px;
+  }
+  .success-box {
+    background-color: #ebf8a4;
+    border: 1px solid #a2d246;
+    border-radius: 5px 5px 5px 5px;
+    box-shadow: 0 1px 1px #ffffff inset;
+    margin: 0.5em 0 1.3em;
+    padding: 10px 10px 10px 25px;
+  }
+
+  .info-box {
+    border: 1px solid #bbbe77;
+    background: #f6f8c5;
+    border-radius: 5px 5px 5px 5px;
+    box-shadow: 0 1px 1px #ffffff inset;
+    padding: 8px;
+  }
+
+  .field-wrap {
+    display: block;
+    padding: 3px;
+    background: #fff;
+    border: 1px solid #969696;
+    box-shadow: 0 1px 2px #ddd inset;
+    border-radius: 3px;
+  }
+  .field-wrap input[type="text"],
+  .field-wrap input[type="password"],
+  .field-wrap input[type="file"],
+  .field-wrap textarea,
+  .field-wrap select {
+    padding: 0;
+    border: 0;
+    width: 100%;
+    /*display: block;*/
+    display: inline-block;
+  }
+  .diploma-form-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 60px;
+  }
+  .diploma-field,
+  .discipline-field {
+    display: flex;
+    flex-direction: column;
+  }
+  .diploma-field {
+    width: 350px;
+  }
+  .discipline-field {
+    width: 200px;
+  }
+  
+  .invalid-feedback{
+    display: none;
+  }
+  .textDiploma{
+    margin-top: 50px;
+    font-size: 15px;
+  }
+  .diplomadeleting{
+    text-align: right;
+  }
+
+  .sendForm{
+    --bs-btn-padding-x: 1.75rem;
+    --bs-btn-padding-y: 0.375rem;
+    --bs-btn-font-family: ;
+    --bs-btn-font-size: 1.3rem;
+    --bs-btn-font-weight: 400;
+    --bs-btn-line-height: 1.5;
+    --bs-btn-color: #212529;
+    --bs-btn-bg: transparent;
+    --bs-btn-border-width: var(--bs-border-width);
+    --bs-btn-border-color: transparent;
+    --bs-btn-border-radius: 0.375rem;
+    --bs-btn-hover-border-color: transparent;
+    --bs-btn-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),0 1px 1px rgba(0, 0, 0, 0.075);
+    --bs-btn-disabled-opacity: 0.65;
+    --bs-btn-focus-box-shadow: 0 0 0 0.25rem rgba(var(--bs-btn-focus-shadow-rgb), .5);
+    display: inline-block;
+    padding: var(--bs-btn-padding-y) var(--bs-btn-padding-x);
+    font-family: var(--bs-btn-font-family);
+    font-size: var(--bs-btn-font-size);
+    font-weight: var(--bs-btn-font-weight);
+    line-height: var(--bs-btn-line-height);
+    color: var(--bs-btn-color);
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    border: var(--bs-btn-border-width) solid var(--bs-btn-border-color);
+    border-radius: var(--bs-btn-border-radius);
+    background-color: #278f49;
+    transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+    --bs-btn-color: #fff;
+    --bs-btn-bg: #278f49;
+    --bs-btn-border-color: #278f49;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #278f49;
+    --bs-btn-hover-border-color: #278f49;
+    --bs-btn-focus-shadow-rgb: 225,83,97;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #278f49;
+    --bs-btn-active-border-color: #278f49;
+    --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-bg: #278f49;
+    --bs-btn-disabled-border-color: #278f49;
+    height: auto;
+    margin-top: 20px;
+    width: 153px;
+    font-size: 17px;
+  }
+
+
+  .rejectForm{
+    --bs-btn-padding-x: 1.75rem;
+    --bs-btn-padding-y: 0.375rem;
+    --bs-btn-font-family: ;
+    --bs-btn-font-size: 1.3rem;
+    --bs-btn-font-weight: 400;
+    --bs-btn-line-height: 1.5;
+    --bs-btn-color: #212529;
+    --bs-btn-bg: transparent;
+    --bs-btn-border-width: var(--bs-border-width);
+    --bs-btn-border-color: transparent;
+    --bs-btn-border-radius: 0.375rem;
+    --bs-btn-hover-border-color: transparent;
+    --bs-btn-box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15),0 1px 1px rgba(0, 0, 0, 0.075);
+    --bs-btn-disabled-opacity: 0.65;
+    --bs-btn-focus-box-shadow: 0 0 0 0.25rem rgba(var(--bs-btn-focus-shadow-rgb), .5);
+    display: inline-block;
+    padding: var(--bs-btn-padding-y) var(--bs-btn-padding-x);
+    font-family: var(--bs-btn-font-family);
+    font-size: var(--bs-btn-font-size);
+    font-weight: var(--bs-btn-font-weight);
+    line-height: var(--bs-btn-line-height);
+    color: var(--bs-btn-color);
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    border: var(--bs-btn-border-width) solid var(--bs-btn-border-color);
+    border-radius: var(--bs-btn-border-radius);
+    background-color: #ce0a0a;
+    transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+    --bs-btn-color: #fff;
+    --bs-btn-bg: #ce0a0a;
+    --bs-btn-border-color: #ce0a0a;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #ce0a0a;
+    --bs-btn-hover-border-color: #ce0a0a;
+    --bs-btn-focus-shadow-rgb: 225,83,97;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #ce0a0a;
+    --bs-btn-active-border-color: #ce0a0a;
+    --bs-btn-active-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-bg: #ce0a0a;
+    --bs-btn-disabled-border-color: #ce0a0a;
+    height: auto;
+    margin-top: 20px;
+    width: 153px;
+    font-size: 17px;
+  }
+
+  .meetForm{
+    margin-top: 275px;
+    font-size: 17px;
+    padding: 0.375rem 1.5rem;
+    background-color: #606060;
+  }
+
+  .adding{
+    font-size: 12px;
+  }
+
+  .formSign{
+    margin: 75px auto;
+    text-align: center;
+  }
+
+  .documentSign {
+    background: url('/img/doc.png');
+    height: 400px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: 530px;
+  }
+
+  .main-block{
+    display: flex;
+    margin: 50px auto;
+    width: 1000px;
+  }
+
+  .previewDoc{
+    width: 50%;
+  }
+
+  .previewDoc img{
+    width: 90%;
+  }
+
+  .dataDoc{
+    width: 50%;
+    padding-left: 20px;
+  }
+
+  .signBlock{
+    width: 90%;
+    margin-top: 30px;
+  }
+
+  .signNav{
+    width: 100%;
+    display: flex;
+    background: #f1f1f1;
+  }
+
+  .signNavItem{
+    text-align: center;
+    width: 50%;
+    padding-top: 15px;
+    padding-bottom: 15px;
+    cursor: pointer;
+  }
+
+  .signActive{
+    background: #ccc;
+  }
+
+  .signBlock{
+    
+    padding-top: 5px;
+  }
+</style>
+
+<h2>Подписание документов</h2>
+<div class="boxes">
+</div>
+<?if (!is_null($data['success'])) {?>
+<?if ($data['success']) {?>
+<div class="success-box">
+  Данные отправлены! Страница будет перезагружена через
+  <strong id="timeCounter">5</strong> сек.
+</div>
+<script type="text/javascript">
+  var intervalID = 0;
+
+  function sec() {
+    var curSec = parseInt($("#timeCounter").text());
+    var newSec = curSec - 1;
+
+    $("#timeCounter").empty().text(newSec);
+
+    if (newSec <= 0) {
+      clearInterval(intervalID);
+      window.location.href = "/spravka";
+    }
+  }
+
+  intervalID = setInterval(sec, 1000);
+
+</script>
+<?} else {?>
+<div class="error-box">Данные не были отправлены</div>
+<?}?>
+<?}?>
+
+<?if (!$data['success']):?>
+<? if($data['text'] != ''){
+  echo '<div class="success-box info-document"><span class ="obuchenietext" style="text-indent: 20px;">'.$data['text'].'</span></div>';
+}
+?>
+
+
+<div class ="main-block">
+  <div class="previewDoc">
+    <object data="/documents/<?=$data['documentName']?>" type="application/pdf" width="100%" height="500px">
+      <p>Не удается отобразить файл. <a href="/documents/<?=$data['documentName']?>">Скачать</a></p>
+    </object>
+  </div>
+  <div class="dataDoc">
+    <p>
+      <? 
+        echo 'Тип заявления: ' . $data['documentType'];?>
+    </p>
+
+    <p>
+      <?
+        echo 'Дата подачи: ' . $data['documentDate'];?>
+    </p>
+    <p>
+      <?
+        echo 'Комментарий: ' . $data['documentComment'];?>
+    </p>
+
+  <div class="signBlock">
+      <div class="signNav">
+        <div class="signNavItem signNavItem1 signActive">
+          Принять
+        </div>
+        <div class="signNavItem signNavItem2">
+          Отклонить
+        </div>
+      </div>
+      <div class="signBlock signBlock1">
+        <?
+          
+            echo '<div class="tokenForm">';
+
+            if($_SESSION['user']['ecp'] == false){
+              echo '<div class="fileForm"><label>Скан подписанного документа</label>
+                    <input type="file" id="doc_file"></div>';
+            }
+
+            echo '<div class="signInput">
+                      <button class="sendForm">Подписать</button>
+                    </div>
+                    
+                  </div>';
+          
+
+        ?>
+        
+    </div>
+    <div class="signBlock signBlock2" style="display: none;">
+      <?
+          
+            echo '<div class="fileForm"><label>Комментарий</label>
+                    <textarea rows="5" cols="45" name="text" id="comment"></textarea></div>
+      <div class="signInput">
+          <button class="rejectForm">Отправить</button>
+      </div>';
+          
+      ?>
+      
+    </div>
+  </div>  
+</div>
+<script type="text/javascript">
+  $('.signNavItem1').on('click', function(){
+     $('.signNavItem2').removeClass("signActive");
+     $('.signNavItem1').addClass("signActive");
+     $('.signBlock1').css('display', 'block');
+     $('.signBlock2').css('display', 'none');
+  });
+
+  $('.signNavItem2').on('click', function(){
+     $('.signNavItem1').removeClass("signActive");
+     $('.signNavItem2').addClass("signActive");
+     $('.signBlock2').css('display', 'block');
+     $('.signBlock1').css('display', 'none');
+  });
+
+  $('.sendForm').on('click', function(){
+    var requestData = {
+    };
+    
+    var fd = new FormData();
+    fd.append('data', JSON.stringify(requestData));
+
+    if(typeof($('#doc_file')[0]) != "undefined"){
+      fd.append('file', $('#doc_file')[0].files[0]);
+    }
+
+    $.ajax({
+
+      url: '/spravka1c/sign',
+
+      method: 'post',
+
+      //dataType: 'html',
+      processData: false,
+      contentType: false,
+
+      data: fd,
+
+      success: function(data){
+
+        if (data == 'success'){
+          $('.main-block').hide();
+          $('.boxes').html('<div class="success-box">Заявление успешно подписано! Страница будет перезагружена через <strong id="timeCounter">5</strong>сек.</div>');
+          var intervalID = 0;
+
+          function sec() {
+            var curSec = parseInt($("#timeCounter").text());
+            var newSec = curSec - 1;
+
+            $("#timeCounter").empty().text(newSec);
+
+            if (newSec <= 0) {
+              clearInterval(intervalID);
+              window.location.href = "/spravka";
+            }
+          }
+
+          intervalID = setInterval(sec, 1000);
+          
+        } else {
+          $('.boxes').html('');
+          var errors = data.split('|');
+          $('.boxes').append('<div class="error-box">Данные не были отправлены</div>');
+          errors.forEach(function(elem){
+            $('.boxes').append('<div class="error-box">' + elem + '</div>')
+          });
+        }
+        
+
+      },
+      
+
+    });
+  });
+
+
+  $('.rejectForm').on('click', function(){
+    var requestData = {
+      'comment': $('#comment').val()
+    };
+    
+    var fd = new FormData();
+    fd.append('data', JSON.stringify(requestData));
+
+    $.ajax({
+
+      url: '/spravka1c/reject',
+
+      method: 'post',
+
+      //dataType: 'html',
+      processData: false,
+      contentType: false,
+
+      data: fd,
+
+      success: function(data){
+
+        if (data == 'success'){
+          $('.main-block').hide();
+          $('.boxes').html('<div class="success-box">Данные успешно отправлены! Страница будет перезагружена через <strong id="timeCounter">5</strong>сек.</div>');
+          var intervalID = 0;
+
+          function sec() {
+            var curSec = parseInt($("#timeCounter").text());
+            var newSec = curSec - 1;
+
+            $("#timeCounter").empty().text(newSec);
+
+            if (newSec <= 0) {
+              clearInterval(intervalID);
+              window.location.href = "/spravka";
+            }
+          }
+
+          intervalID = setInterval(sec, 1000);
+          
+        } else {
+          $('.boxes').html('');
+          var errors = data.split('|');
+          $('.boxes').append('<div class="error-box">Данные не были отправлены</div>');
+          errors.forEach(function(elem){
+            $('.boxes').append('<div class="error-box">' + elem + '</div>')
+          });
+        }
+        
+
+      },
+      
+
+    });
+  });
+
+</script>
+<?endif;?>

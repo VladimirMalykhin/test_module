@@ -1,0 +1,102 @@
+<?php
+
+include_once('validators/textLengthRange.validator');
+include_once('validators/int.validator');
+include_once('validators/bool.validator');
+include_once('validators/enum.validator');
+include_once('validators/date.validator');
+include_once('validators/require.validator');
+include_once('validators/file.validator');
+include_once('module/spravka1c/array.validator');
+include_once('module/spravka1c/classes/base/BaseDocument.class');
+
+class Academ extends BaseDocument{
+	private $type = "000000005";
+	private $date_start;
+	private $date_end;
+	private $vacation_type;
+	private $files;
+	private $allowedStatuses = [
+		"Является студентом"
+	];
+
+
+	public function __construct($data){
+		$this->date_start = $data['data']['datefrom'];
+		$this->date_end = $data['data']['dateto'];
+		$this->vacation_type = $data['data']['reason'];
+		$this->files = $data['files'];
+	}
+
+
+	public function Validate(){
+		parent::validateStatus($this->allowedStatuses, spravka1c::$asr1C);
+		$reasonList = $this->getReasonList();
+		$dataValidated = [
+			['value' => $this->vacation_type, 'label' => 'Причина', 'validators' => array(new enumValidator(array_keys($reasonList)))],
+
+		];
+ 		
+		return parent::Validate($dataValidated);
+	}
+
+
+	public function GetData1C($diplomaId)
+	{
+
+		$files = $this->parseFiles($diplomaId, $this->vacation_type);
+		return [
+			'student_id' => $_SESSION['user']['zbook'], 
+			'type' => $this->type, 
+			'date_start' => $this->date_start, 
+			'date_end' => $this->date_end, 
+			'vacation_type' => $this->vacation_type, 
+			'files' => $files];
+	}
+
+
+	private function parseFiles($diplomaId, $vacation_type)
+	{
+		$files1c = [];
+		foreach($this->files as $key => $value){
+			$file1c = parent::moveFile($key, $value, $this->files[$key]['tmp_name'], $diplomaId);
+            $file1c['type'] = $this->getTypeDocument($vacation_type);
+            $files1c[] = $file1c;                      
+        }
+
+        $sth = core::$db->prepare('SELECT * FROM `attachmentnew` WHERE `spravka`=' . intval($diplomaId));
+        $sth->execute();
+        $filesDb = $sth->fetchAll();
+        $sth->closeCursor();
+        foreach($filesDb as $fileDb){
+        	$files1c[] = ['path' => $fileDb['path'], 'ext' => $fileDb['ext'], 'type' => $this->getTypeDocument($vacation_type)];
+        }
+        return $files1c;
+	}
+
+	
+	private function getTypeDocument($vacation_type)
+	{
+		$types = [
+			'000000005' => '000000149',
+			'000000013' => '000000147',
+			'000000061' => '000000149',
+			'000000009' => '000000134'
+		];
+		
+		return $types[$vacation_type];
+	}	
+		
+    private function getReasonList()
+    {
+        $arr = array('000000005' => 'академический отпуск по медицинским показаниям', '000000013' => 'академический отпуск в связи с призывом на военную службу', '000000017' => 'академический отпуск в связи с семейными обстоятельствами', '000000061' => 'отпуск по беременности и родам' , '000000009' => 'отпуск по уходу за ребенком до достижения им возраста трех лет');
+        return $arr;
+    }
+
+
+    public function GetErrors()
+    {
+    	return parent::GetErrors();
+    }
+
+}

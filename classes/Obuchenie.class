@@ -1,0 +1,95 @@
+<?php
+
+include_once('validators/textLengthRange.validator');
+include_once('validators/int.validator');
+include_once('validators/bool.validator');
+include_once('validators/enum.validator');
+include_once('validators/date.validator');
+include_once('validators/require.validator');
+include_once('validators/file.validator');
+include_once('module/spravkanew/array.validator');
+include_once('module/spravkanew/classes/base/BaseDocument.class');
+
+class Obuchenie extends BaseDocument{
+	private $type = "000000001";
+	private $copy_count;
+	private $print_format;
+	private $print_profile;
+	private $print_date_start;
+	private $print_date_graduation;
+	private $place_request;
+	private $comment;
+	private $files;
+	private $allowedStatuses = [
+		"Является студентом"
+	];
+
+
+	public function __construct($data){
+		$this->copy_count = $data['copy_count'];
+		$this->print_format = $data['print_format'];
+		$this->print_profile = $data['print_profile'];
+		$this->print_date_start = $data['print_date_start'];
+		$this->print_date_graduation = $data['print_date_graduation'];
+		$this->place_request = $data['place_request'];
+		$this->comment = $data['comment'];
+		$this->files = $data['files'];
+	}
+
+
+	public function Validate(){
+		parent::validateStatus($this->allowedStatuses);
+		$dataValidated = [
+			['value' => $this->copy_count, 'label' => 'Количество экземпляров справки', 'validators' => [new intValidator()]],
+			['value' => $this->print_format, 'label' => 'Формат обучения', 'validators' => [new boolValidator()]],
+			['value' => $this->print_profile, 'label' => 'Профиль', 'validators' => [new boolValidator()]],
+			['value' => $this->print_date_start, 'label' => 'Дата начала обучения', 'validators' => [new boolValidator()]],
+			['value' => $this->print_date_graduation, 'label' => 'Дата окончания обучения', 'validators' => [new boolValidator()]],
+			['value' => $this->place_request, 'label' => 'Место предоставления', 'validators' => [new textLengthRangeValidator(3, 150)]],
+			['value' => $this->comment, 'label' => 'Комментарий', 'validators' => [new textLengthRangeValidator(0, 150)]]
+		];
+
+		foreach($this->files as $file){
+			$dataValidated[] = ['label' => 'Файл документа', 'value' => $file, 'validators' => array(new fileValidator(true, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))];
+		} 
+		return parent::Validate($dataValidated);
+	}
+
+
+	public function GetData1C($diplomaId)
+	{
+
+		$files = $this->parseFiles($diplomaId);
+		return [
+			'student_id' => $_SESSION['user']['zbook'], 
+			'type' => $this->type, 
+			'copy_count' => $this->copy_count, 
+			'print_format' => boolval($this->print_format), 
+			'print_profile' => boolval($this->print_profile), 
+			'print_date_start' => boolval($this->print_date_start), 
+			'print_date_graduation' => boolval($this->print_date_graduation),
+			'print_birth_date' => boolval($this->print_birth_date),
+			'place_request' => $this->place_request,
+			'comment' => $this->comment,
+			'files' => $files];
+	}
+
+
+	private function parseFiles($diplomaId)
+	{
+		$files1c = [];
+		foreach($this->files as $key => $value){
+			$file1c = parent::moveFile($key, $value, $this->files[$key]['tmp_name'], $diplomaId);
+            $files1c[] = $file1c;                      
+        }
+        return $files1c;
+	}
+
+
+
+    public function GetErrors()
+    {
+    	return parent::GetErrors();
+    }
+
+}

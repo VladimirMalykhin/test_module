@@ -1,0 +1,1333 @@
+<?
+
+include_once('module/core/form/formBase.form');
+include_once('module/core/form/validators/textLengthRange.validator');
+include_once('module/core/form/validators/int.validator');
+include_once('module/core/form/validators/bool.validator');
+include_once('module/core/form/validators/enum.validator');
+include_once('module/core/form/validators/date.validator');
+include_once('module/core/form/validators/require.validator');
+include_once('module/core/form/validators/file.validator');
+include_once('module/spravka1c/form');
+include_once('module/spravka1c/helper');
+
+class spravka1c
+{
+    public static $asr1C;
+    public static $asr1CDev;
+    public static $imobis;
+
+    public function __construct(){
+        include_once('module/core/asr1C.class');
+        include_once('module/core/asr1CDev.class');
+        include_once('module/core/imobis.class');
+
+        self::$asr1C = new asr1C();
+        self::$asr1CDev = new asr1CDev();
+        self::$imobis = new Imobis();
+
+        !(isset($_SESSION['user']['spravka1c'])) ? $_SESSION['user']['spravka1c'] = [] : null;
+    }
+
+
+    public function Init()
+    {
+        
+        $userId = $_SESSION['user']['id'];
+        //$response1C = self::$asr1C->GetData('course_works', ['student_id' => "000008605"]);
+        
+        $typeList = formSpravka::getTypeList();
+        $signs = self::$asr1C->GetSignData('check_sign', ['student_id' => $_SESSION['user']['1c_id']]);
+        if($signs['signature_data']['is_active'] == true){
+            $_SESSION['user']['ecp'] = $signs['signature_data'];
+            unset($typeList['sign_new']);
+        } else {
+            $_SESSION['user']['ecp'] = false;
+        }
+        $viewData = array();
+        
+        $viewData['typeList'] = $typeList;
+        
+        if(!isset($_SESSION['user']['spravka1c']['applications'])){
+            $sth = core::$db->prepare('SELECT * FROM `spravkanew` WHERE `user`=' . $userId . ' ORDER BY `id` DESC LIMIT 30');
+            $sth->execute();
+            $data = $sth->fetchAll();
+            $sth->closeCursor();
+            for($i = 0; $i < count($data); $i++){
+                $appStatus = self::$asr1C->GetData('status', ['doc_uid' => $data[$i]['uid']]);
+                $data[$i]['status'] = (isset($appStatus['doc_status_esign']) && $appStatus['doc_status_esign'] != "" && in_array($data[$i]['status'], [1,3,6])) ? $appStatus['doc_status_esign'] : $data[$i]['status'];
+                (isset($appStatus['file']) && $appStatus['file'] != "") ? $data[$i]['fileEp'] = $appStatus['file'] : null;
+            }
+            $_SESSION['user']['spravka1c']['applications'] = $data;
+        }
+        
+
+        $viewData['lastList'] = $_SESSION['user']['spravka1c']['applications'];
+
+        core::Render($viewData, 'views/');
+    }
+
+
+    public function Documents()
+    {
+
+        $documents = self::$asr1C->GetSignData('get_notifications', ['student_id' => $_SESSION['user']['1c_id']]);
+        $documentsFinal = [];
+        for($i=0;$i<count($documents['data']);$i++){
+
+            if($documents['data'][$i]['print_form'] != 'Заявление студента'){
+                $documentsFinal['data'][] = $documents['data'][$i];
+            }
+        }
+        $_SESSION['user']['spravka1c']['documents'] = $documentsFinal;
+        $viewData['documents'] = $documentsFinal;
+        core::Render($viewData, 'views/documents.');
+    }
+
+
+    private function GetClassForm($type) // значение полей формы по дефолту
+    {
+        include_once('module/spravka1c/classes/formdata/FormDataClasses.php');
+
+        $types = ['fast_education', 'personal', 'discount', 'iup'];
+
+        if(in_array($type, $types)){
+            $listClasses = [
+                'fast_education' => new FastEducationData(),
+                'personal' => new PersonalData(),
+                'discount' => new DiscountData(),
+                'iup' => new IupData(),
+            ];
+            $response = $listClasses[$type];
+        } else {
+            $response = null;
+        }
+
+        return $response;
+    }
+
+
+    public function Add() // форма ноого заявления
+    {
+
+        $applydocuments = ['expel', 'academ']; 
+        
+        $type = $_GET['type'];
+        $success = NULL;
+        $userId = intval($_SESSION['user']['id']);
+
+        $formTitle = (in_array($type, $applydocuments)) ? 'studentapply' : 'studentadd'; 
+        
+        $form = new formSpravka($formTitle, $type, []);
+        
+        $document = $this->getClassForm($type);
+        $formData = ($document) ? $document->toArray() : ['type' => $_GET['type']];
+        $form->SetData($formData);
+        $typeList = $form->getTypeList();
+        $viewData = array();
+        $viewData['form'] = $form;
+        $viewData['title'] = $typeList[$type];
+        $viewData['type'] = $type;
+        $viewData['desc'] = $this->getDesc($type);
+        $renderFile = (is_file('module/spravka1c/views/add'. $type . '.view')) ? 'views/add'. $type . '.' : 'views/add.';
+
+        if($type == 'sign_new'){
+            $viewData['accept'] = $this->AcceptForm();
+        }
+
+        
+
+        if ($form->Submitted())
+        {
+            if ($form->Validate())
+            {
+                $validateStatus = $this->ValidateDb($type); //проверка на факт подачи такой заявки ранее
+                if($validateStatus == false){
+                    $viewData['success'] = false; 
+                    $viewData['comment'] = 'Заявка уже была подана ранее';
+                    core::Render($viewData, $renderFile);
+                }
+
+                $validation1cStatus = $this->Validate1c($type); //проверка на наличие разрешения подать эту заявку в 1С
+                if($validation1cStatus == false){
+                    $viewData['success'] = false; 
+                    $viewData['comment'] = 'Данная заявка вам недоступна';
+                    core::Render($viewData, $renderFile);
+                }
+
+                $dfs = $form->GetData();
+
+                $result = NULL;
+
+                $sth = core::$db->prepare("INSERT INTO `spravkanew` (`type`, `user`, `datetime`, `status`) VALUES (?,?,?, 7)");
+                $result = $sth->execute(array(
+                    $type,
+                    $userId,
+                    date('Y-m-d H:i:s')
+                ));
+
+                $insertId = core::$db->LastInsertId();
+                $sth->closeCursor();
+                
+                if ($insertId)
+                {
+                    unset($_SESSION['user']['spravka1c']['applications']);
+                    $sth = core::$db->prepare('SELECT * FROM `group` WHERE `id`=' . $_SESSION['user']['group']);
+                    $sth->execute();
+                    $group = $sth->fetch();
+                    $sth->closeCursor();
+                    $textMessage = 'Уважаемый куратор!<br>Новая заявка на <br><b>'. spravka1cHelper::getTypeList()[$type] .'</b><br>Для более подробной информации перейдите по данной <a href="/spravka1c/edit/?id='.$insertId.'">ссылке</a>';
+                    $sth = core::$db->prepare("INSERT INTO `message` (`from`, `to`, `text`, `auto`, `read`) VALUES (?,?,?,1, 0)");
+                    $sth->execute(array(
+                        8405,
+                        $group['admin'],
+                        $textMessage
+                    ));
+                    $sth->closeCursor();
+
+                    if(is_file('session/sess_user'.$group['admin'])){ 
+                        $smsg['from_id'] = $_SESSION['user']['id'];
+                        $smsg['from_group'] = $_SESSION['user']['group'];
+                        $smsg['from_name'] = $_SESSION['user']['name'];
+                        $smsg['text'] =  str_replace("\n", '<br />', stripslashes($textMessage));
+                        $smsg['datetime'] = ldate('H:i:s');
+                        $smsg['read'] =  0;
+                        exec('/usr/bin/php '.$_SERVER['DOCUMENT_ROOT'].'/module/message/gateway '.$group['admin'].' '.base64_encode(serialize($smsg)));
+                    }
+
+                    if($_FILES){
+                        foreach($_FILES as $key => $value){
+                            $ext = pathinfo($value['name'], PATHINFO_EXTENSION);
+                            $fileName = $this->genKey();
+                            if(copy($value['tmp_name'], 'documents/'.$insertId . '-' . $fileName . '.' . $ext)){
+                                $sth = core::$db->prepare("INSERT INTO `attachmentnew` (`spravka`, `path`, `ext`) VALUES (?,?,?)");
+                                $result = $sth->execute(array(
+                                    $insertId,
+                                    'https://.../documents/' . $insertId . '-' . $fileName . '.' . $ext,
+                                    $ext
+                                ));
+
+                                $insertId = core::$db->LastInsertId();
+                                $sth->closeCursor();
+                                
+                            } else {
+                                $success = false;
+                                
+                            }                     
+                        }
+                        $success = true;
+                        
+                    } else {
+                        $success = true;
+                    }
+                    
+                }            
+                else
+                {
+                    $success = false;
+                }
+                
+            }
+            else
+            {
+                $success = false;
+            }
+        }
+        
+
+        $viewData['success'] = $success;
+        $viewData['existed'] = false;
+        core::Render($viewData, $renderFile);
+        
+    }
+
+
+    public function getOrder()
+    {
+        $disciplineId = $_POST['discipline'];
+        !(isset($_SESSION['user']['spravka1c']['course_disciplines_change'])) ? die(json_encode([])) : null;
+        ($disciplineId == "") ? die(json_encode(['teacher' => '', 'theme' => ''])) : null;
+
+        $response = [];
+        foreach($_SESSION['user']['spravka1c']['course_disciplines_change'] as $discipline){
+            if($discipline['discipline_id'] == $disciplineId){
+                $response = ['teacher' => $discipline['teacher'], 'theme' => $discipline['theme']];
+                break;
+            }
+        }
+        die(json_encode($response, JSON_UNESCAPED_UNICODE));
+    }
+
+
+    private function ValidateDb($type)
+    {
+        $sth = core::$db->prepare('SELECT * FROM `spravkanew` WHERE `user`=' . $_SESSION['user']['id'] .' AND `type` = "'. $type .'" AND `status` != 9 AND `status` != 4 AND `status` != 5 AND `status` != 10');
+        $sth->execute();
+        $documents = $sth->fetchAll(); // существующие заявки
+        $sth->closeCursor();
+        $response = (count($documents) == 0) ? true : false;
+        return $response;
+    }
+
+
+    private function Validate1c($type)
+    {
+        $allowedStatuses = $this->getAllowedStatuses($type);
+        $response1C = self::$asr1C->GetData('student_status', ['student_id' => $_SESSION['user']['zbook']]);
+        if($response1C['error'] == true) return false;
+        if(!in_array($response1C['student_status'], $allowedStatuses)) return false;
+        return true;
+    }
+
+
+    private function getAllowedStatuses($type) //получить разрешенные статусы студента для подачи заявлений
+    {
+        $statuses = [
+            'academ' => ["Является студентом"],
+            'expel' => ["Является студентом"]
+        ];
+
+        return $statuses[$type];
+    }
+
+
+    private function getDesc($type)
+    {
+        $descs = [
+            'academ' => '<p>Академический отпуск предоставляется обучающемуся в связи с невозможностью освоения образовательной программы высшего образования в Институте по медицинским показаниям, семейным и иным обстоятельствам на период времени от одного года и не превышающий двух лет.</p>
+
+            <p>Отпуск по беременности и родам предоставляется обучающемуся в связи с невозможностью освоения образовательной программы в Институте по медицинским показаниям на период времени до 194 календарных дней.</p>
+
+            <p>Отпуск по уходу за ребенком предоставляется обучающемуся в связи с невозможностью освоения образовательной программы в Институте по семейным обстоятельствам до достижения ребенком возраста трех лет.</p>',
+            'expel' => '<span>Не допускается отчисление обучающихся во время академического отпуска, отпуска по беременности и родам, отпуска по уходу за ребенком до достижения им возраста трех лет.</span><br/>
+                <span>Отчисление по собственному желанию производится в течение 10 (десяти) рабочих дней после подачи обучающимися заявления.</span><br/>
+                <span>При отчислении из Института обучающийся сдает студенческий билет и подписанный обходной лист.</span><br/>
+                <span>Шаблон согласия на расторжение договора по <a href="/documents/agreement.docx">ссылке</a></span>'
+        ];
+
+        return $descs[$type];
+    }
+
+
+    private function getContract()
+    {
+
+        $responseData = [];
+        $paymentData = self::$asr1C->GetData('payment_info', ['student_id' => $_SESSION['user']['zbook']]);
+        $_SESSION['user']['payment1c']['contract'] = $paymentData['payment_info'][0]['contract_number'];
+        return $paymentData['payment_info'][0]['contract_number'];
+    }
+
+
+    public function pay()
+    {
+
+        if(!$_SESSION['user']['1c_id'] || $_SESSION['user']['1c_id'] == ''){
+            header('Location: /spravka');
+        }
+
+
+        $id = core::$param;
+        (!is_numeric($id)) ? header("Location: /spravka1c") : null;
+        $sth = core::$db->prepare('SELECT * FROM `spravkanew` WHERE `user`=' . $_SESSION['user']['id'] . ' AND `id`=' . $id);
+        $sth->execute();
+        $inquiry = $sth->fetch();
+        $sth->closeCursor();
+        (!($inquiry)) ? header("Location: /spravka1c") : null;
+
+        $summPayed = json_decode($inquiry['data1C'], true)['sum'];
+        $contract = ($_SESSION['user']['payment1c']['contract']) ? $_SESSION['user']['payment1c']['contract'] : $this->getContract();
+ 
+        
+        include_once "sberPay/DocumentClass.php";
+        $document = new DocumentClass;
+        
+        $userId = $_SESSION['user']['id'];
+        $userName = $_SESSION['user']['name'];
+        $groupName = $_SESSION['user']['group_name'];
+        $specName = $_SESSION['user']['spec_name'];
+        $semestr = $_SESSION['user']['semestr'];
+
+        $kurs = ceil(intval($semestr)/2);
+        
+        $form = array(
+            'o' => 'очная',
+            'oz' => 'очно-заочная',
+            'z' => 'заочная'
+        );
+
+        //$Purpose = $userName . ', ' . $groupName . ', ' . $specName . ', ' . $kurs . ' курс, ' . $form[$_SESSION['user']['form']] . '.';
+        $Purpose = 'Договор: ' . $contract . ', ' . $userName;
+
+        $arParams = [
+            'field' => [
+                'user_id' => $userId,
+            ],
+            'QR' => [
+                'dir_file_QR' => dirname(__DIR__).'/payment/sberPay/qrUser/', // путь к папке модуля где будут храниться файлы QR папке дать разрешения 775
+                'params' => [
+                    'ST00012', // Стандарт
+
+                    'Name' => 'НОЧУ ВО «Московский институт психоанализа»',
+                    'PersonalAcc' => '40703810238100100649',
+                    'BankName' => 'ПАО "СБЕРБАНК"',
+                    'BIC' => '044525225',
+                    'CorrespAcc' => '30101810400000000225',
+
+                    'PayeelNN' => '',
+                    'LastName' => $userName,
+                    'Purpose' => $Purpose,
+                    'РауегАddress' => '',
+                    'Sum' => $summPayed * 100,
+                    'Phone' => '',
+                    'fio' => $userName,
+                    'SomeNewReq' => '',
+                    'Contract' => $_SESSION['user']['payment1c']['contract']
+
+                ],
+            ],
+            'ticket' => [
+                'INN' => '7713131464',
+                'Purpose' => $Purpose,
+                'fio' => $userName,
+                'adress' => '',
+            ]
+        ];
+        
+        $document->ticket($arParams);
+        
+    }
+
+
+    public function qrcodeview()
+    {
+        if(!$_SESSION['user']['1c_id'] || $_SESSION['user']['1c_id'] == ''){
+            header('Location: /spravka');
+        }
+
+
+        $id = core::$param;
+        (!is_numeric($id)) ? header("Location: /spravka1c") : null;
+        $sth = core::$db->prepare('SELECT * FROM `spravkanew` WHERE `user`=' . $_SESSION['user']['id'] . ' AND `id`=' . $id);
+        $sth->execute();
+        $inquiry = $sth->fetch();
+        $sth->closeCursor();
+        (!($inquiry)) ? header("Location: /spravka1c") : null;
+        $summPayed = json_decode($inquiry['data1C'], true)['sum'];
+        $contract = ($_SESSION['user']['payment1c']['contract']) ? $_SESSION['user']['payment1c']['contract'] : $this->getContract();
+
+        include_once "sberPay/DocumentClass.php";
+        $document = new DocumentClass;
+
+        $userId = $_SESSION['user']['id'];
+        $userName = $_SESSION['user']['name'];
+        $groupName = $_SESSION['user']['group_name'];
+        $specName = $_SESSION['user']['spec_name'];
+        $semestr = $_SESSION['user']['semestr'];
+
+        $kurs = ceil(intval($semestr)/2);
+        
+        $form = array(
+            'o' => 'очная',
+            'oz' => 'очно-заочная',
+            'z' => 'заочная'
+        );
+
+        $Purpose = 'Договор: ' . $contract . ', ' . $userName;
+
+        $arParamsQR = [
+            // Стандарт
+            'ST00012',
+            // Основные параметры
+            'Name' => 'НОЧУ ВО «Московский институт психоанализа»',
+            'PersonalAcc' => '40703810238100100649',
+            'BankName' => 'ПАО "СБЕРБАНК"',
+            'BIC' => '044525225',
+            'CorrespAcc' => '30101810400000000225',
+            // Дополнительные параметры
+            'PayeelNN' => '',
+            'LastName' => $userName,
+            'Purpose' => $Purpose,
+            'РауегАddress' => '',
+            'Sum' => $summPayed * 100,
+            'Phone' => '',
+            'SomeNewReq' => '',
+            'Contract' => $_SESSION['user']['payment1c']['contract']
+        ];
+
+        $document->QR($arParamsQR);
+    }
+
+
+
+    public function Fill() //форма заявления по подтвержденной заявке
+    {
+
+        $success = NULL;
+        $userId = intval($_SESSION['user']['id']);
+
+        $id = core::$param;
+        (!is_numeric($id)) ? header("Location: /spravka1c") : null;
+        $sth = core::$db->prepare('SELECT * FROM `spravkanew` WHERE `user`=' . $userId . ' AND `status` = 8 AND `id`=' . $id);
+        $sth->execute();
+        $inquiry = $sth->fetch();
+        $sth->closeCursor();
+        (!($inquiry)) ? header("Location: /spravka1c") : null;
+        $form = new formSpravka('studentadd', $inquiry['type'], []);
+        $document = $this->getClassForm($inquiry['type']);
+        $formData = ($document) ? $document->toArray() : ['type' => $inquiry['type']];
+        if($inquiry['form_data'] != ''){
+            $formJson = (array)json_decode($inquiry['form_data'], true);
+            foreach($formJson as $key => $value){
+                $formData[$key] = $value;
+            }
+        }
+        $form->SetData($formData);
+
+
+
+        $typeList = $form->getTypeList();
+        $viewData = array();
+        $viewData['form'] = $form;
+        $viewData['success'] = $success;
+        $viewData['title'] = $typeList[$inquiry['type']];
+        $viewData['type'] = $inquiry['type'];
+        $viewData['id'] = $inquiry['id'];
+        
+        $renderFile = (is_file('module/spravka1c/views/fill'. $inquiry['type'] . '.view')) ? 'views/fill'. $inquiry['type'] . '.' : 'views/add.';
+        core::Render($viewData, $renderFile);
+    }
+  
+
+    private function genKey()
+    {
+        $map = "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ0123456789ACHKMNSTX00000000";
+        $hash=crc32(uniqid(mt_rand(), true))+0x100000000;
+        $str = "";
+        do {
+            $str = $map[31+ ($hash % 31)] . $str;
+            $hash /= 31;
+        } while($hash >= 1);
+
+        return $str;
+    }
+
+  
+    private function getDataFor1C($type, $files = [], $content = [])
+    {
+        $data = [
+            'expel' => ['student_id' => $this->GetStudentPassport(), 'type' => "000000002",  'date_dismiss' => date('Y-m-d'), 'files' => $files],
+            'fast_education' => ['student_id' => $this->GetStudentPassport(), 'type' => "000000004", 'course' => $content['course'], 'semestr' => $content['semestr'], 'accelerated' => boolval($content['accelerated']), 'date_dismiss' => date('Y-m-d'), 'documents' => $content['documents'], 'files' => $files],
+            'obuchenie' =>  ['student_id' => $this->GetStudentPassport(), 'type' => "000000001", 'place_request' => $content['place_request'], 'copy_count' => intval($content['copy_count']), 'print_profile' => boolval($content['print_profile']), 'print_format' => boolval($content['print_format']), 'print_date_start' => boolval($content['print_date_start']), 'print_date_graduation' => boolval($content['print_date_graduation']), 'print_birth_date' => boolval($content['print_birth_date']), 'comment' => $content['comment'], 'files' => $files],
+            'academ' => ['student_id' => $this->GetStudentPassport(), 'type' => "000000005", 'date_start' => $content['datefrom'], 'date_end' => $content['dateto'], 'vacation_type' => $content['reason'], 'files' => $files],
+        ];
+        
+        return $data[$type];
+
+    }
+
+
+    private function getFormData($type)
+    {
+        $datas = ['fast_education' => ['course' => 1, 'semester' => 1]];
+        return $datas[$type];
+    }
+
+
+    private function GetStudentPassport()
+    {
+        $sth = core::$db->prepare('SELECT `number` FROM `user` WHERE `id`=' . $_SESSION['user']['id']);
+        $sth->execute();
+        $data = $sth->fetch();
+        return $data['number'];
+    }
+
+
+    private function getDocumentClass($type, $content){
+        include_once('module/spravka1c/classes/Academ.class');
+        include_once('module/spravka1c/classes/Expel.class');
+        include_once('module/spravka1c/classes/Discount.class');
+        include_once('module/spravka1c/classes/DiscountSocial.class');
+        include_once('module/spravka1c/classes/SignNew.class');
+        include_once('module/spravka1c/classes/Iup.class');
+        include_once('module/spravka1c/classes/Vypiska.class');
+        include_once('module/spravka1c/classes/Transfer.class');
+        include_once('module/spravka1c/classes/Personal.class');
+        include_once('module/spravka1c/classes/CourseTheme.class');
+        include_once('module/spravka1c/classes/CourseThemeChange.class');
+
+        $documents = [
+            'academ' => new Academ($content),
+            'expel' => new Expel($content),
+            'discount' => new Discount($content),
+            'discount_social' => new DiscountSocial($content),
+            'sign_new' => new SignNew($content),
+            'iup' => new Iup($content),
+            'vypiska' => new Vypiska($content),
+            'transfer' => new Transfer($content),
+            'personal' => new Personal($content),
+            'course_theme' => new CourseTheme($content),
+            'course_theme_change' => new CourseThemeChange($content)
+        ];
+
+        return $documents[$type];
+    }
+
+
+    public function SendFilled(){     // отправка в 1с заявлений по заявкам
+        $userId = $_SESSION['user']['id'];
+
+        $requestData = $_POST['data'];
+
+        $documentData = json_decode($requestData, true);
+         $sth = core::$db->prepare('SELECT `id`, `form_data` FROM `spravkanew` WHERE `user`=' . $userId . ' AND `status` = 8 AND `id`=' . intval($documentData['id']));
+        $sth->execute();
+        $inquiry = $sth->fetch();
+        $sth->closeCursor();
+        (!($inquiry)) ? die('Ошибка') : null;
+        if($inquiry['form_data'] != ""){
+           $formItems = (array)json_decode($inquiry['form_data'], true); 
+        }
+        $documentData['content']['files'] = ($_FILES) ? $_FILES : [];
+        $documentData['content']['data'] = $formItems;
+        $document = $this->getDocumentClass($documentData['type'], $documentData['content']);
+
+        if(!$document) die('Непредвиденная ошибка!');
+        $noErrors = $document->Validate();
+        if(!$noErrors) {
+            $errors = [];
+            foreach($document->GetErrors() as $key => $values){
+                foreach($values as $error){
+                    $errors[] = $error;
+                }
+            }
+            die(implode('|', $errors));
+        }
+
+        $dataFor1C = $document->GetData1c($inquiry['id']);
+        $response1C = self::$asr1C->sendData($dataFor1C);
+        !($response1C['doc_uid']) ? die('Не удалось отправить данные. Пожалуйста повторите попытку позже') : null;
+        $sth = core::$db->prepare("UPDATE `spravkanew` SET `status` = ?, `uid` = ?, `status1c` = ?, `data1C` = ? WHERE `id` = ?");
+        $result = $sth->execute(array(
+            '1',
+            $response1C['doc_uid'],
+            $response1C['status'],
+            json_encode($dataFor1C),
+            $inquiry['id']
+        ));
+        
+        $sth->closeCursor();
+        unset($_SESSION['user']['spravka1c']['applications']);
+        die('success');
+    }
+
+
+    public function Send(){
+
+        $requestData = $_POST['data'];
+
+        $documentData = json_decode($requestData, true);
+        $validateStatus = $this->ValidateDb($documentData['type']); //проверка на факт подачи такой заявки ранее
+        if($validateStatus == false){
+            die('Заявка уже была подана ранее');
+        }
+        
+        $documentData['content']['files'] = ($_FILES) ? $_FILES : [];
+        $document = $this->getDocumentClass($documentData['type'], $documentData['content']);
+        if(!$document) die('Непредвиденная ошибка !');
+        $noErrors = $document->Validate();
+        
+        if(!$noErrors) {
+            
+            $errors = [];
+            foreach($document->GetErrors() as $key => $values){
+                foreach($values as $error){
+                    $errors[] = $error;
+                }
+            }
+            die(implode('|', $errors));
+        }
+
+        $sth = core::$db->prepare("INSERT INTO `spravkanew` (`type`, `user`, `datetime`) VALUES (?,?,?)");
+        $result = $sth->execute(array(
+            $documentData['type'],
+            $_SESSION['user']['id'],
+            date('Y-m-d H:i:s')
+        ));
+        $insertId = core::$db->LastInsertId();
+        $sth->closeCursor();
+        unset($_SESSION['user']['spravka1c']['applications']);
+
+        $sth = core::$db->prepare('SELECT * FROM `group` WHERE `id`=' . $_SESSION['user']['group']);
+        $sth->execute();
+        $group = $sth->fetch();
+        $sth->closeCursor();
+
+        $textMessage = 'Уважаемый куратор!<br>Новая заявление: <br><b>'. spravka1cHelper::getTypeList()[$documentData['type']] .'</b><br>Для более подробной информации перейдите в 1С</a>';
+        $sth = core::$db->prepare("INSERT INTO `message` (`from`, `to`, `text`, `auto`, `read`) VALUES (?,?,?,1, 0)");
+        $sth->execute(array(
+            8405,
+            $group['admin'],
+            $textMessage
+        ));
+        $sth->closeCursor();
+
+        if(is_file('session/sess_user'.$group['admin'])){ 
+            $smsg['from_id'] = $_SESSION['user']['id'];
+            $smsg['from_group'] = $_SESSION['user']['group'];
+            $smsg['from_name'] = $_SESSION['user']['name'];
+            $smsg['text'] =  str_replace("\n", '<br />', stripslashes($textMessage));
+            $smsg['datetime'] = ldate('H:i:s');
+            $smsg['read'] =  0;
+            exec('/usr/bin/php '.$_SERVER['DOCUMENT_ROOT'].'/module/message/gateway '.$group['admin'].' '.base64_encode(serialize($smsg)));
+        }
+
+        $dataFor1C = $document->GetData1c($insertId);
+
+        $response1C = ($documentData['type'] == 'sign_new') ? self::$asr1C->sendDataGet('make_sign', $dataFor1C) : self::$asr1C->sendData($dataFor1C);
+        $statusNew = ($documentData['type'] == 'sign_new') ? '4' : '1';
+        $sth = core::$db->prepare("UPDATE `spravkanew` SET `status` = ?, `uid` = ?, `status1c` = ?, `data1C` = ? WHERE `id` = ?");
+        $result = $sth->execute(array(
+            $statusNew,
+            $response1C['doc_uid'],
+            $response1C['status'],
+            json_encode($dataFor1C),
+            $insertId
+        ));
+        
+        if($documentData['type'] == 'sign_new'){
+            ($response1C['signature_data'] && $response1C['signature_data']['is_active'] == true) ? null : die('Не удалось отправить данные. Пожалуйста повторите попытку позже');
+        } else {
+            !($response1C['doc_uid']) ? die('Не удалось отправить данные. Пожалуйста повторите попытку позже') : null;
+        }
+        
+        $sth->closeCursor();
+        die('success');
+    }
+
+
+    public function GetSum(){
+        $sum = 0;
+        $requestData = json_decode($_POST['data'], true);
+        if($requestData['sem1'] > $requestData['sem2']){
+            die('неккоректное значение');
+        }
+        foreach($_SESSION['user']['future_semesters'] as $semesterData){
+            if($semesterData['semester'] >= $requestData['sem1'] && $semesterData['semester'] <= $requestData['sem2']){
+                $sum += $semesterData['price'];
+            }
+        }
+        die((string)$sum);
+    }
+
+
+    public function Update(){
+
+        $userId = $_SESSION['user']['id'];
+        $id = core::$param;
+        (!is_numeric($id)) ? header("Location: /spravka1c") : null;
+        $sth = core::$db->prepare('SELECT `uid` FROM `spravkanew` WHERE `user`=' . $userId . ' AND `id`=' . $id);
+        $sth->execute();
+        $inquiry = $sth->fetch();
+        (!($inquiry)) ? header("Location: /spravka1c") : null;
+        $response1C = self::$asr1C->GetStatus('status', ['doc_uid' => $inquiry['uid']]);
+        $statusInquiry = $response1C['doc_status_code'];
+        $sth = core::$db->prepare('UPDATE `spravkanew` SET `status`=' . $statusInquiry . ' WHERE `id`=' . $id);
+        $sth->execute();
+        $sth->closeCursor();
+        header("Location: /spravka1c");
+    }
+
+
+    public function Pdf(){
+        $spravkaDir = 'documents/';
+        $nameFile = md5(uniqid());
+        $userId = $_SESSION['user']['id'];
+        $id = core::$param;
+        (!is_numeric($id)) ? header("Location: /spravka1c") : null;
+        $sth = core::$db->prepare('SELECT `uid` FROM `spravkanew` WHERE `user`=' . $userId . ' AND `id`=' . $id);
+        $sth->execute();
+        $inquiry = $sth->fetch();
+        $sth->closeCursor();
+        (!($inquiry)) ? header("Location: /spravka1c") : null;
+        $response1C = self::$asr1C->GetData('pdf', ['doc_uid' => $inquiry['uid']]);
+        $dataFile = $response1C['data'];
+        $binary = base64_decode($dataFile);
+        file_put_contents($spravkaDir . $nameFile.'.pdf', $binary);
+        header("Location: https://" .$nameFile. ".pdf");
+    }
+
+
+    public function Protocol(){
+        $spravkaDir = 'documents/';
+        $nameFile = md5(uniqid());
+        $userId = $_SESSION['user']['id'];
+        $id = core::$param;
+        (!is_numeric($id)) ? header("Location: /spravka1c") : null;
+        $sth = core::$db->prepare('SELECT `uid` FROM `spravkanew` WHERE `user`=' . $userId . ' AND `id`=' . $id);
+        $sth->execute();
+        $inquiry = $sth->fetch();
+        $sth->closeCursor();
+        (!($inquiry)) ? header("Location: /spravka1c") : null;
+        $response1C = self::$asr1C->GetData('pdf', ['doc_uid' => $inquiry['uid'], 'pf_id' => '000000018']);
+        $dataFile = $response1C['data'];
+        $binary = base64_decode($dataFile);
+        file_put_contents($spravkaDir . $nameFile.'.pdf', $binary);
+        header("Location: https://" .$nameFile. ".pdf");
+    }
+
+
+    public function DocumentsPdf(){
+        $spravkaDir = 'documents/';
+        $nameFile = md5(uniqid());
+        $fid = core::$param;
+        $response1C = self::$asr1C->GetSignData('file_signed', ['id' => $fid]);
+        $dataFile = $response1C['base64_data'];
+        $binary = base64_decode($dataFile);
+        file_put_contents($spravkaDir . $nameFile.'.pdf', $binary);
+        header("Location: https://" .$nameFile. ".pdf");
+    }
+
+
+    public function SigningForm(){
+
+        $spravkaDir = 'documents/';
+        $nameFile = md5(uniqid());
+        $response1C = self::$asr1C->GetSignData('consent_form', ['student_id' => $_SESSION['user']['1c_id']]);
+        $dataFile = $response1C['data'];
+        $binary = base64_decode($dataFile);
+        file_put_contents($spravkaDir . $nameFile.'.pdf', $binary);
+        header("Location: https://" .$nameFile. ".pdf");
+    }
+
+
+    private function AcceptForm(){ //акцепт на странице получения ЭП
+
+        $spravkaDir = 'documents/';
+        $nameFile = md5(uniqid());
+        $response1C = self::$asr1C->GetSignData('consent_form', ['student_id' => $_SESSION['user']['1c_id']]);
+        $dataFile = $response1C['data'];
+        $_SESSION['variable101'] = $response1C;
+        $binary = base64_decode($dataFile);
+        file_put_contents($spravkaDir . $nameFile.'.pdf', $binary);
+        return $nameFile.'.pdf';
+    }
+
+
+    public function Download(){
+        error_reporting(E_ALL);
+        include_once('module/spravka1c/libs/vendor/autoload.php');
+
+        header("Content-Type: application/zip");
+        header("Content-Transfer-Encoding: Binary");
+        header("Content-Disposition: attachment; filename=\"".basename('files.zip')."\"");
+        $spravkaDir = 'documents/';
+        $nameFile = md5(uniqid());
+        $userId = $_SESSION['user']['id'];
+        $id = core::$param;
+        (!is_numeric($id)) ? header("Location: /spravka1c") : null;
+        $sth = core::$db->prepare('SELECT `uid` FROM `spravkanew` WHERE `user`=' . $userId . ' AND `status` = 4 AND `type` = "obuchenie" AND `id`=' . $id);
+        $sth->execute();
+        $inquiry = $sth->fetch();
+        $sth->closeCursor();
+        (!($inquiry)) ? header("Location: /spravka1c") : null;
+
+        $response1C = self::$asr1C->GetStatus('inquiry_files_uids', ['doc_uid' => $inquiry['uid']]);
+        $options = new \ZipStream\Option\Archive();
+        $options->setContentType('application/zip');
+        $zip = new ZipStream\ZipStream($name = 'files.zip', $options);
+        foreach($response1C['files'] as $file){
+            $file1C = $asr1C->GetStatus('get_file', ['file_uid' => $file['file_uid']]);
+            $binary = base64_decode($file1C['binary_data']);
+            //die($binary);
+            file_put_contents('module/spravka1c/tmp/' . $file1C['file_name']. ".". $file1C['file_ext'], $binary);
+            $zip->addFile(
+                $file1C['file_name']. ".". $file1C['file_ext'],
+                $binary
+            );
+            //$zip->addFile('module/spravkanew/tmp/' . $file1C['file_name']. ".". $file1C['file_ext']);
+            unlink('module/spravka1c/tmp/' . $file1C['file_name']. ".". $file1C['file_ext']);
+        }
+        //$zip->close();
+        
+        header("Content-Length: ".filesize('files.zip'));
+        
+        $finish = $zip->finish();
+        
+        
+    }
+
+    
+    private function getSignText($type){
+        $texts = [
+            'expel' => 'Для ознакомления с заявлением об отчислении и обходным листом нажмите кнопку Ознакомиться.<br/>Для подписания документов нажмите кнопку Подписать*'
+        ];
+
+        $text = (isset($texts[$type])) ? $texts[$type] : '';
+
+        return $text;
+    }
+    
+
+
+    public function Sign(){
+        if(!$_SESSION['user']['1c_id'] || $_SESSION['user']['1c_id'] == ''){
+            header('Location: /spravka');
+        }
+
+        $requestData = $_POST['data'];
+        $documentData = json_decode($requestData, true);
+        $fid = end(explode('/', $_SERVER['HTTP_REFERER']));
+
+        ($_SESSION['user']['ecp'] == false && !($_FILES)) ? die('Подписать заявление невозможно') : null;
+        
+        $sth = core::$db->prepare('SELECT `uid`, `type` FROM `spravkanew` WHERE `user`=' . $_SESSION['user']['id'] . ' AND (`status` = "3" OR `status` = "1") AND `id`=' . intval($fid));
+        $sth->execute();
+        $inquiryS = $sth->fetch();
+        $sth->closeCursor();
+        !($inquiryS) ? die('Заявление не найдено') : null;
+        $dataSign = ['doc_uid' => $inquiryS['uid']];
+        
+        if($_SESSION['user']['ecp'] == false){
+            $spravkaDir = 'documents/';
+            foreach($_FILES as $key => $value){
+                $ext = pathinfo($value['name'], PATHINFO_EXTENSION);
+                $fileName = $this->genKey();
+                    if(copy($value['tmp_name'], 'documents/'.$fid . '-' . $fileName . '.' . $ext)){
+     
+                    } else {
+                        $success = false;            
+                    } 
+                $dataSign['file'] = ['path' => 'https://' . $fid . '-' . $fileName . '.' . $ext, 'ext' => $ext];                    
+            }
+
+            $this->SignApp($dataSign, $_SESSION['user']['id'], intval($fid), 6);
+        } else {
+            $appStatus = self::$asr1C->GetData('status', ['doc_uid' => $inquiryS['uid']]);
+            if(isset($appStatus['doc_esign_uid']) && $appStatus['doc_esign_uid'] != ""){
+                $response1C = self::$asr1C->sendDataGet('sign_doc', ['id' => $appStatus['doc_esign_uid'], 'accept' => 1]);
+                if($response1C['error'] == false){
+                    $this->SignApp($dataSign, $_SESSION['user']['id'], intval($fid), 'Подписано ЭП');
+                } else {
+                    die('Не удалось подписать документ. Пожалуйста, попробуйте позже');
+                }
+            } else {
+                $this->SignApp($dataSign, $_SESSION['user']['id'], intval($fid), 6);
+            }
+        } 
+        
+    }
+
+
+    private function SignApp($dataSign, $userId, $fid, $status){
+        $response1C = self::$asr1C->sendJson('sign', $dataSign);
+        $success = $response1C['status'];
+        if($success == true){
+
+            $sth = core::$db->prepare('UPDATE `spravkanew` SET `status` = "6" WHERE `user`=' . $userId . ' AND (`status` = "3" OR `status` = "1") AND `id`=' . intval($fid));
+            $sth->execute();                          
+            $sth->closeCursor();
+
+            for ($i=0; $i < count($_SESSION['user']['spravka1c']['applications']); $i++) { 
+                if($_SESSION['user']['spravka1c']['applications'][$i]['id'] == intval($fid)){
+                    $_SESSION['user']['spravka1c']['applications'][$i]['status'] = $status;
+                    break;
+                }
+            }
+            unset($_SESSION['user']['spravka1c']['applications']);
+            die('success');
+        } 
+        else {
+            die('Не удалось подписать документ. Пожалуйста, попробуйте позже');
+        }
+    }
+
+
+    public function Reject(){
+        if(!$_SESSION['user']['1c_id'] || $_SESSION['user']['1c_id'] == ''){
+            header('Location: /spravka');
+        }
+        $requestData = json_decode($_POST['data'], true);
+        !(isset($requestData['comment']) && $requestData['comment'] != "") ? die('Комментарий обязателен') : null;
+
+        $documentData = json_decode($requestData, true);
+        $fid = end(explode('/', $_SERVER['HTTP_REFERER']));
+        
+        $sth = core::$db->prepare('SELECT `uid`, `type` FROM `spravkanew` WHERE `user`=' . $_SESSION['user']['id'] . ' AND (`status` = "3" OR `status` = "13") AND `id`=' . intval($fid));
+        $sth->execute();
+        $inquiryS = $sth->fetch();
+        $sth->closeCursor();
+        !($inquiryS) ? die('Заявление не найдено') : null;
+        $dataSign = ['doc_uid' => $inquiryS['uid'], 'comment' => $requestData['comment']];
+    
+       $response1C = self::$asr1C->sendJson('reject', $dataSign);
+       $success = $response1C['status'];
+       if($success == true){
+         $sth = core::$db->prepare('UPDATE `spravkanew` SET `status` = "12" WHERE `user`=' .$_SESSION['user']['id'] . ' AND (`status` = "3" OR `status` = "13") AND `id`=' . intval($fid));
+         $sth->execute();                          
+         $sth->closeCursor();
+         unset($_SESSION['user']['spravka1c']['applications']);
+         die('success');
+       } 
+        
+    }
+
+
+    public function Sign2(){
+        if(!$_SESSION['user']['1c_id'] || $_SESSION['user']['1c_id'] == ''){
+            header('Location: /spravka');
+        }
+
+        $requestData = $_POST['data'];
+        $documentData = json_decode($requestData, true);
+        $fid = end(explode('/', $_SERVER['HTTP_REFERER']));
+
+        
+        
+        $sth = core::$db->prepare('SELECT `uid`, `type` FROM `spravkanew` WHERE `user`=' . $_SESSION['user']['id'] . ' AND `status` = "3" AND `id`=' . intval($fid));
+        $sth->execute();
+        $inquiryS = $sth->fetch();
+        $sth->closeCursor();
+        !($inquiryS) ? header("Location: /spravka1c") : null;
+        $dataSign = ['doc_uid' => $inquiryS['uid']];
+        
+    
+       $response1C = self::$asr1C->sendJson('sign', $dataSign);
+       $success = $response1C['status'];
+       if($success == true){
+         $sth = core::$db->prepare('UPDATE `spravkanew` SET `status` = "6" WHERE `user`=' . $_SESSION['user']['id'] . ' AND `status` = "3" AND `id`=' . intval($fid));
+         $sth->execute();                          
+         $sth->closeCursor();
+         die('success');
+       } 
+        
+    }
+
+
+    public function SignAppForm(){
+        $spravkaDir = 'documents/';
+        if(!$_SESSION['user']['1c_id'] || $_SESSION['user']['1c_id'] == ''){
+            header('Location: /spravka');
+        }
+
+        $userId = $_SESSION['user']['id'];
+        $id = core::$param;
+        (!is_numeric($id)) ? header("Location: /spravka1c") : null;
+        $sth = core::$db->prepare('SELECT `uid`, `type`, `comment`, `datetime` FROM `spravkanew` WHERE `user`=' . $userId . ' AND (`status` = "3" OR `status` = "1" OR `status` = "13") AND `id`=' . intval($id));
+        $sth->execute();
+        $inquiryS = $sth->fetch();
+        $sth->closeCursor();
+        !($inquiryS) ? header("Location: /spravka1c") : null;
+        $form = new formSpravka('signdocumentsscan', '', []);
+        $viewData = [];
+
+        $nameFile = md5(uniqid());
+        
+        $response1C = self::$asr1C->GetData('pdf', ['doc_uid' => $inquiryS['uid']]);
+        $dataFile = $response1C['data'];
+        $binary = base64_decode($dataFile);
+        file_put_contents($spravkaDir . $nameFile.'.pdf', $binary);
+
+        $viewData['document'] = intval($id);
+        $viewData['documentName'] = $nameFile.'.pdf';
+        $viewData['documentComment'] = $inquiryS['comment'];
+        $viewData['documentType'] = spravka1cHelper::getTypeList()[$inquiryS['type']];
+        $viewData['documentDate'] = Helper::ConvertDate($inquiryS['datetime'], 'd.m.Y');
+        $viewData['text'] = $this->getSignText($inquiryS['type']);
+        $renderFile = (is_file('module/spravka1c/views/sign'. $inquiryS['type'] . '.view')) ? 'views/sign'. $inquiryS['type'] . '.' : 'views/sign.';
+        core::Render($viewData, $renderFile);
+    }
+
+
+    public function SignForm(){
+        $spravkaDir = 'documents/';
+        (!$_SESSION['user']['spravka1c']['documents'] || $_SESSION['user']['spravka1c']['documents'] == []) ? header("Location: /spravka1c") : null;
+        $fid = core::$param;
+        $documentData = [];
+        foreach($_SESSION['user']['spravka1c']['documents']['data'] as $document){
+            if($document['uid'] == $fid){
+                $documentData = $document;
+                break;
+            }
+        }
+        if($documentData == []){
+            header("Location: /spravka1c/documents"); 
+        }
+
+        $nameFile = md5(uniqid());
+        $fid = core::$param;
+        
+        $response1C = self::$asr1C->GetData('get_file', ['file_uid' => $documentData['file']]);
+
+        $dataFile = $response1C['binary_data'];
+
+        $binary = base64_decode($dataFile);
+        file_put_contents($spravkaDir . $nameFile.'.pdf', $binary);
+
+        $viewData['document'] = $documentData;
+        $viewData['documentName'] = $nameFile.'.pdf';
+        core::Render($viewData, 'views/signdoc.');
+    }
+
+
+    private function validateTimeCode(){
+        if (isset($_SESSION['user']['spravka1c']['ecp_time'])) {  //проверка, отправлялся ли код в течение последних 3 минут
+            $timeDiff = time() - $_SESSION['user']['spravka1c']['ecp_time'];
+            if ($timeDiff < 180) {
+                $timeLeft = 180 - (int)$timeDiff;
+
+                die('Не удалось отправить код. Повторная отправка возможна через ' . gmdate("i:s", $timeLeft));
+            }
+        }
+    }
+
+
+    private function getContactInfo(){
+        if(!isset($_SESSION['user']['contact_info'])){
+            $response1C = self::$asr1C->GetData('contact_info', ['student_id' => $_SESSION['user']['zbook']]);
+            if(isset($response1C['contact_info'])){
+                $_SESSION['user']['spravka1c']['contact_info'] = $response1C['contact_info'];
+            } else {
+                die('Непредвиденная ошибка');
+            }
+        }
+
+    }
+
+
+     public function GetFaculty(){
+        $requestData = json_decode($_POST['data'], true);
+        
+        $response = ['' => ''];
+        foreach($_SESSION['user']['spravka1c']['transfer']['education'] as $educationData){
+            if($educationData['id'] == $requestData['value']){
+               $_SESSION['user']['spravka1c']['transfer']['faculty'] = $educationData['faculty'];
+               foreach($educationData['faculty'] as $faculty){
+                    $response[$faculty['id']] = $faculty['name'];
+               }
+               $_SESSION['user']['spravka1c']['transfer']['education_selected'] = [$requestData['value']];
+               break;
+            }
+        }
+
+        die(json_encode($response, JSON_UNESCAPED_UNICODE));
+    }
+
+
+    public function GetSpecialty(){
+        $requestData = json_decode($_POST['data'], true);
+        $response = ['' => ''];
+        foreach($_SESSION['user']['spravka1c']['transfer']['faculty'] as $facultyData){
+            if($facultyData['id'] == $requestData['value']){
+               $_SESSION['user']['spravka1c']['transfer']['speciality'] = $facultyData['speciality'];
+               foreach($facultyData['speciality'] as $specialty){
+                    $response[$specialty['id']] = $specialty['name'];
+               }
+               $_SESSION['user']['spravka1c']['transfer']['faculty_selected'] = [$requestData['value']];
+               break;
+            }
+        }
+
+        die(json_encode($response, JSON_UNESCAPED_UNICODE));
+    }
+
+
+    public function GetProfile(){
+        $requestData = json_decode($_POST['data'], true);
+        $response = ['' => ''];
+        foreach($_SESSION['user']['spravka1c']['transfer']['speciality'] as $specialityData){
+            if($specialityData['id'] == $requestData['value']){
+               $_SESSION['user']['spravka1c']['transfer']['profile'] = $specialityData['profile'];
+               foreach($specialityData['profile'] as $profile){
+                    $response[$profile['id']] = $profile['name'];
+               }
+               $_SESSION['user']['spravka1c']['transfer']['speciality_selected'] = [$requestData['value']];
+               break;
+            }
+        }
+
+        die(json_encode($response, JSON_UNESCAPED_UNICODE));
+    }
+
+
+    public function GetEducationForm(){
+        $requestData = json_decode($_POST['data'], true);
+        $response = ['' => ''];
+        foreach($_SESSION['user']['spravka1c']['transfer']['profile'] as $profileData){
+            if($profileData['id'] == $requestData['value']){ 
+               $_SESSION['user']['spravka1c']['transfer']['form'] = $profileData['education_form'];
+               foreach($profileData['education_form'] as $form){
+                    $response[$form['id']] = $form['name'];
+               }
+               $_SESSION['user']['spravka1c']['transfer']['profile_selected'] = [$requestData['value']];
+               break;
+            }
+        }
+
+        die(json_encode($response, JSON_UNESCAPED_UNICODE));
+    }
+
+
+    public function GetEducationFormat(){
+        $requestData = json_decode($_POST['data'], true);
+        $response = ['' => ''];
+        $formats = [];
+        foreach($_SESSION['user']['spravka1c']['transfer']['form'] as $formData){
+            if($formData['id'] == $requestData['value']){ 
+               $_SESSION['user']['spravka1c']['transfer']['format'] = $formData['education_format'];
+               foreach($formData['education_format'] as $format){
+                    $response[$format['id']] = $format['name'];
+                    $formats[] = $format['id'];
+               }
+               $_SESSION['user']['spravka1c']['transfer']['form_selected'] = [$requestData['value']];
+               $_SESSION['user']['spravka1c']['transfer']['formats_existed'] = $formats;
+               break;
+            }
+        }
+
+        die(json_encode($response, JSON_UNESCAPED_UNICODE));
+    }
+
+
+    public function codeSend(){
+
+        $this->validateTimeCode();
+        $this->getContactInfo();
+        
+        (!isset($_SESSION['user']['spravka1c']['contact_info']['email'])) ? die('error') : null;
+        require_once '../SMTP/SMTPmail.php';
+        if($_SESSION['user']['id'] == 5){
+            $_SESSION['user']['spravka1c']['contact_info']['email'] = 'malyxin-1998@mail.ru';
+        }
+        $token = rand(1000,9999);
+        $_SESSION['user']['spravka1c']['ecp_code'] = $token;
+        $msg = file_get_contents('../SMTP/send_token.html');
+        $msg = str_replace('$user_name', $_SESSION['user']['name'], $msg);
+        $msg = str_replace('$token', $token, $msg);
+        new SMTPmail($_SESSION['user']['spravka1c']['contact_info']['email'], 'МИП :: Код для подписи', $msg, 'mip');
+        die('Проверочный код отправлен на почту ' . $_SESSION['user']['spravka1c']['contact_info']['email'] .'. Если указанный контакт неактуален, пожалуйста свяжитесь с куратором для актуализации информации.');
+    }
+
+
+    public function code()
+    {
+        $this->validateTimeCode();
+        $this->getContactInfo();
+
+
+        $code = rand(1000, 9999);
+        $_SESSION['user']['spravka1c']['ecp_code'] = $code;
+            
+        (isset($_SESSION['user']['spravka1c']['contact_info']['phone_m'])) ? $geeks = $_SESSION['user']['spravka1c']['contact_info']['phone_m'] : die('Непредвиденная ошибка');
+        preg_match_all('/[0-9]{1}/', $geeks, $matches);
+        if($_SESSION['user']['id'] == 5){
+            $_SESSION['user']['spravka1c']['contact_info']['phone_m'] = '+79152611306';
+            $_SESSION['user']['spravka1c']['contact_info']['email'] = 'malyxin-1998@mail.ru';
+        }
+        if ($matches[0][1] == '9' && $matches[0][0] == '7') {
+                     
+            $sending = self::$imobis->SendMessage(["sender" => "INPSYCHO", "phone" => $_SESSION['user']['spravka1c']['contact_info']['phone_m'], "text" => "Ваш одноразовый код электронной подписи на портале priem.instudy.online: " . $code, "ttl" => 172800, "custom_id" => "id".rand()]);
+            if (isset($sending['result']) && $sending['result'] == 'success') {
+                $_SESSION['user']['spravka1c']['ecp_time'] = time();
+                die('Проверочный код отправлен на номер ' . $_SESSION['user']['spravka1c']['contact_info']['phone_m'] .'. Если указанный контакт неактуален, пожалуйста свяжитесь с куратором для актуализации информации.');
+            } else {
+                die('Непредвиденная ошибка');
+            }
+        } else {
+            $msg = file_get_contents('../SMTP/send_token.html');
+            $msg = str_replace('$user_name', $_SESSION['user']['name'], $msg);
+            $msg = str_replace('$token', $code, $msg);
+            (!isset($_SESSION['user']['spravka1c']['contact_info']['email'])) ? die('Непредвиденная ошибка') : null;
+            new SMTPmail($_SESSION['user']['spravka1c']['contact_info']['email'], 'МИП :: Код для электронной подписи', $msg, 'mip');
+                die('success2');
+
+        }
+
+        die('Проверочный код отправлен на почту ' . $_SESSION['user']['spravka1c']['contact_info']['email'] .'. Если указанный контакт неактуален, пожалуйста свяжитесь с куратором для актуализации информации.');
+    }
+
+
+    private function getTypeDoc($uid){
+        $typeDoc = '';
+        foreach($_SESSION['user']['spravka1c']['documents']['data'] as $document){
+            if($document['uid'] == $uid){
+                $typeDoc = $document['doc_type'];
+                break;
+            }
+        }
+
+        return $typeDoc;
+    }
+
+
+    private function getTitleDoc($uid){
+        $typeDoc = '';
+        foreach($_SESSION['user']['spravka1c']['documents']['data'] as $document){
+            if($document['uid'] == $uid){
+                $titleDoc = explode(']', $document['object'])[0]; 
+                $typeDoc = str_replace('[', '', $titleDoc);
+                break;
+            }
+        }
+
+        return $typeDoc;
+    }
+
+
+    public function Signdoc(){
+        $requestData = $_POST['data'];
+        $documentData = json_decode($requestData, true);
+        $fid = end(explode('/', $_SERVER['HTTP_REFERER']));
+        $typeDoc = $this->getTitleDoc($fid);
+        
+        if(in_array($typeDoc, ['Договор ВО', 'Дополнительное соглашение'])){
+            ($documentData['token'] == "" && !($_FILES)) ? die('Подписать заявление невозможно') : null;
+            ($documentData['token'] != $_SESSION['user']['spravka1c']['ecp_code']) ? die('Неверный код') : null;
+        }
+        
+        
+        $dataSign = ['id' => $fid, 'accept' => 1];
+        
+        if($documentData['token'] != ""){
+           ($documentData['token'] != $_SESSION['user']['spravka1c']['ecp_code']) ? die('Неверный код') : null; 
+        } else {
+            $spravkaDir = 'documents/';
+            foreach($_SESSION['user']['spravka1c']['documents']['data'] as $document){
+                if($document['uid'] == $fid){
+                    $noEsign = $document['no_esign'];
+                    break;
+                }
+            }
+
+            ($noEsign == 1 && $_FILES == []) ? die('Необходимо загрузить скан подписанного документа') : null;
+            ($noEsign == 0 && $_FILES != []) ? die('Непредвиденная ошибка') : null;
+
+            foreach($_FILES as $key => $value){
+                $ext = pathinfo($value['name'], PATHINFO_EXTENSION);
+                (!in_array($ext, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff'))) ? die('Возможны следующие расширения файлов: jpg, jpeg, pdf, gif, bmp, png, tiff') : null;
+                $fileName = $this->genKey();
+                    if(copy($value['tmp_name'], 'documents/'.$fid . '-' . $fileName . '.' . $ext)){
+     
+                    } else {
+                        $success = false;            
+                    } 
+                $dataSign['file'] = ['path' => '...' . $fid . '-' . $fileName . '.' . $ext, 'ext' => $ext];                    
+            }
+        }
+
+        $response1C = self::$asr1C->sendDataGet('sign_doc', $dataSign);
+        if($response1C['error'] == false){
+            die('success');
+        } else {
+            die('Не удалось подписать документ. Пожалуйста, попробуйте позже');
+        }
+    }
+
+
+    public function Meet(){
+        $_SESSION['user']['ecp_meet'] = true;
+    }
+    
+
+    
+}

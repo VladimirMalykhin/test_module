@@ -1,0 +1,129 @@
+<?php
+
+class spravka1cHelper
+{
+    /**
+     * @return array
+     */
+    public static function getTypeList()
+    {
+        $typeList = array(
+            'personal' => 'Заявление об изменении персональных данных',
+            //'course_theme_change' => 'Заявление об изменении темы курсовой работы',
+            'expel' => 'Заявление об отчислении',
+            //'course_theme' => 'Заявление об утверждении темы курсовой работы',
+            'transfer' => 'Заявление о переводе внутри ВУЗа',
+            'iup' => 'Заявление о переводе на ИУП',
+            'vypiska' => 'Заявление о получении выписки из ЗЭВ',
+            'academ' => 'Заявление о предоставлении академического отпуска',
+            'discount' => 'Заявление о предоставлении скидки за единовременный платеж',
+            'discount_social' => 'Заявление о предоставлении социальной скидки',
+            'sign_new' => 'Заявление о предоставлении электронной подписи',
+        );
+
+        if($_SESSION['user']['id'] == 5){
+            $typeList['course_theme_change'] = 'Заявление об изменении темы курсовой работы';
+            $typeList['course_theme'] = 'Заявление об утверждении темы курсовой работы';
+        }
+
+        return $typeList;
+    }
+
+    /**
+     * @return array
+     */
+    public static function getStatusList()
+    {
+        return array(
+            '1' => 'Подано',
+            '2' => 'На рассмотрении',
+            '3' => 'Требует подписи',
+            '4' => 'Выполнено',
+            '5' => 'Отклонено',
+            '6' => 'Подписано',
+            '7' => 'Заявка подана',
+            '8' => 'Формирование заявления',
+            '9' => 'Заявка аннулирована',
+            '10' => 'Оплачено',
+            '11' => 'Ожидает оплаты',
+            '12' => 'Отказано в подписи',
+            '13' => 'Повторное согласование'
+        );
+    }
+
+
+    /**
+     * @return array
+     */
+    public static function getStatusKuratorList()
+    {
+        return array(
+            '8' => 'Формирование заявления',
+            '9' => 'Заявка аннулирована'
+        );
+    }
+
+    /**
+     * @param $status
+     * @return mixed
+     */
+    public static function getStatusName($status)
+    {
+        $statusList = self::getStatusList();
+        $answer = (isset($statusList[$status])) ? $statusList[$status] : $status;
+        return $answer;
+    }
+
+    public static function getFacultyNameById($id)
+    {
+        $sth = core::$db->prepare('SELECT * FROM `faculty` WHERE `id`=' . $id);
+        $sth->execute();
+        $data = $sth->fetch();
+
+        return $data['name'];
+    }
+
+    public static function getSpecialtyNameById($id)
+    {
+        $sth = core::$db->prepare('SELECT * FROM `specialty` WHERE `id`=' . $id);
+        $sth->execute();
+        $data = $sth->fetch();
+
+        return $data['name'];
+    }
+
+    public static function getFormName($code)
+    {
+        $name = '';
+        switch ($code)
+        {
+            case 'o':
+                $name = 'очная';
+                break;
+            case 'oz':
+                $name = 'очно-заочная';
+                break;
+            case 'z':
+                $name = 'заочная';
+                break;
+        }
+
+        return $name;
+    }
+
+    public static function getLevelName($code)
+    {
+        $name = '';
+        switch ($code)
+        {
+            case 'spo':
+                $name = 'среднее профессиональное образование';
+                break;
+            case 'vo':
+                $name = 'высшее образование';
+                break;
+        }
+
+        return $name;
+    }
+}

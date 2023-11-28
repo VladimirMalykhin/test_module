@@ -1,0 +1,35 @@
+<?php
+
+include_once('module/core/form/validators/validatorBase.validator');
+
+class arrayValidator extends validatorBase
+{
+	public function __construct($zeroAllowed = true)
+	{
+		$this->zeroAllowed = $zeroAllowed;
+	}
+
+	public function Validate()
+	{
+		$result = false;
+
+		if (is_array($this->value))
+		{
+			if ($this->zeroAllowed)
+			{
+				$result = true;
+			}
+			else
+			{
+				$result = ($this->value == 0) ? false : true;
+				$this->setError('Поле "' . $this->fieldLabel . '" обязательно для заполнения');
+			}
+
+		}
+		else
+		{
+		    $this->setError('Значение поля "' . $this->fieldLabel . '" должно быть массивом');
+		}
+		return $result;
+	}
+}

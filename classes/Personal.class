@@ -1,0 +1,131 @@
+<?php
+
+include_once('validators/textLengthRange.validator');
+include_once('validators/int.validator');
+include_once('validators/bool.validator');
+include_once('validators/enum.validator');
+include_once('validators/date.validator');
+include_once('validators/require.validator');
+include_once('validators/file.validator');
+include_once('module/spravka1c/array.validator');
+include_once('module/spravka1c/classes/base/BaseDocument.class');
+
+class Personal extends BaseDocument{
+	private $type = "000000003";
+	private $type_of_doc = "000000090";
+	private $last_name;
+	private $first_name;
+	private $middle_name;
+	private $doc_series;
+	private $doc_number;
+	private $doc_ovd;
+	private $doc_date;
+	private $doc_ovd_code;
+	private $reason;
+	private $allowedStatuses = [
+		"Является студентом"
+	];
+
+
+	public function __construct($data){
+		$this->last_name = $data['last_name'];
+		$this->first_name = $data['first_name'];
+		$this->middle_name = $data['middle_name'];
+		$this->doc_series = $data['doc_series'];
+		$this->doc_number = $data['doc_number'];
+		$this->doc_ovd = $data['doc_ovd'];
+		$this->doc_date = $data['doc_date'];
+		$this->doc_ovd_code = $data['doc_ovd_code'];
+		$this->reason = $data['reason'];
+		$this->files = $data['files'];
+	}
+
+
+	public function Validate(){
+		parent::validateStatus($this->allowedStatuses, spravka1c::$asr1C);
+		$reasonPersonalList = $this->getReasonPersonalList();
+		$hasPassport = false;
+		$dataValidated = [
+			['value' => $this->last_name, 'label' => 'Фамилия', 'validators' => [new textLengthRangeValidator(2, 100)]],
+			['value' => $this->first_name, 'label' => 'Имя', 'validators' => [new textLengthRangeValidator(2, 100)]],
+			['value' => $this->middle_name, 'label' => 'Отчество', 'validators' => [new textLengthRangeValidator(2, 100)]],
+			['value' => $this->doc_series, 'label' => 'Серия документа', 'validators' => [new textLengthRangeValidator(2, 10)]],
+			['value' => $this->doc_number, 'label' => 'Номер документа', 'validators' => [new textLengthRangeValidator(2, 100)]],
+			['value' => $this->doc_ovd, 'label' => 'Наименование подразделения выдавшего документ (ОВД)', 'validators' => [new textLengthRangeValidator(2, 150)]],
+			['value' => $this->doc_ovd_code, 'label' => 'Код подразделения выдавшего документ', 'validators' => [new textLengthRangeValidator(2, 7)]],
+			['value' => $this->reason, 'selectList' => $reasonPersonalList, 'label' => 'Причина изменения данных', 'validators' =>  array(new enumValidator(array_keys($reasonPersonalList)))]
+		];
+		
+		foreach($this->files as $key => $file){
+			$fileData = explode('_', $key);
+			if($fileData[1] == '000000090') $hasPassport = true;
+			if($fileData[1] == '000000145') $hasReplace = true;
+			$dataValidated[] = ['label' => 'Файл документа', 'value' => $file, 'validators' => array(new fileValidator(true, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))];
+		} 
+		if($this->files == []){
+			$dataValidated[] = ['label' => 'Документ, удостоверяющий личность', 'value' => $this->files, 'validators' => array(new fileValidator(true, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))];
+		} else {
+			if(!$hasPassport){
+				$dataValidated[] = ['label' => 'Документ, удостоверяющий личность', 'value' => $this->files, 'validators' => array(new fileValidator(true, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))];
+			}
+
+			if(!$hasReplace){
+				$dataValidated[] = ['label' => 'Свидетельство о смене имени', 'value' => $this->files, 'validators' => array(new fileValidator(true, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))];
+			}
+		}
+
+		return parent::Validate($dataValidated);
+	}
+
+
+	public function GetData1C($diplomaId)
+	{
+
+		$files = $this->parseFiles($diplomaId);
+		return [
+			'student_id' => $_SESSION['user']['zbook'], 
+			'type' => $this->type, 
+			'first_name' => $this->first_name, 
+			'last_name' => $this->last_name, 
+			'middle_name' => $this->middle_name, 
+			'doc_series' => $this->doc_series, 
+			'doc_number' => $this->doc_number, 
+			'doc_date' => $this->doc_date,
+			'doc_ovd' => $this->doc_ovd,
+			'doc_ovd_code' => $this->doc_ovd_code,
+			'reason' => $this->reason,
+			'type_of_doc' => $this->type_of_doc,
+			'files' => $files];
+	}
+
+
+	private function parseFiles($diplomaId)
+	{
+		$files1c = [];
+		foreach($this->files as $key => $value){
+			$file1c = parent::moveFile($key, $value, $this->files[$key]['tmp_name'], $diplomaId);
+			$fileData = explode('_', $key);
+			$file1c['type'] = $fileData[1];
+            $files1c[] = $file1c;                      
+        }
+        return $files1c;
+	}
+
+
+	/**
+     * @return array
+     */
+    public static function getReasonPersonalList()
+    {
+        $arr = array('000000053' => 'изменением фамилии', '000000054' => 'изменением имени', '000000055' => 'изменением отчества', '000000056' => 'изменением фамилии и имени' , '000000057' => 'изменением фамилии, имени и отчества', '000000058' => 'изменением фамилии и отчества', '000000059' => 'изменением имени и отчества');
+        return $arr;
+    }
+
+
+
+    public function GetErrors()
+    {
+    	return parent::GetErrors();
+    }
+
+}

@@ -1,0 +1,68 @@
+<?php
+
+include_once('validators/textLengthRange.validator');
+include_once('validators/int.validator');
+include_once('validators/bool.validator');
+include_once('validators/enum.validator');
+include_once('module/spravkanew/validators/datesystem.validator');
+include_once('validators/require.validator');
+include_once('validators/file.validator');
+include_once('module/spravkanew/array.validator');
+include_once('module/spravkanew/classes/base/BaseDocument.class');
+
+class AcademExit extends BaseDocument{
+	private $type = "000000008";
+	private $date;
+	private $express;
+	private $vacation_type;
+	private $allowedStatuses = [
+		"Является студентом",
+		"Находится в академическом отпуске"
+	];
+
+
+	public function __construct($data){
+		$this->date = $data['date'];
+		$this->vacation_type = $data['vacation_type'];
+		$this->express = $data['express'];
+	}
+
+
+	public function Validate(){
+		parent::validateStatus($this->allowedStatuses);
+		$reasonList = $this->getReasonList();
+		$dataValidated = [
+			['value' => $this->express, 'label' => 'Является ли поле досрочным', 'validators' => [new boolValidator()]],
+			['value' => $this->vacation_type, 'label' => 'Причина', 'validators' => array(new enumValidator(array_keys($reasonList)))],
+			['value' => $this->date, 'label' => 'Дата выхода из отпуска', 'validators' => array(new dateSystemValidator())]
+		];
+ 		
+		return parent::Validate($dataValidated);
+	}
+
+
+	public function GetData1C($diplomaId)
+	{
+		return [
+			'student_id' => $_SESSION['user']['zbook'], 
+			'type' => $this->type, 
+			'date' => $this->date, 
+			'express' => boolval($this->express), 
+			'vacation_type' => $this->vacation_type 
+		];
+	}
+	
+		
+    private function getReasonList()
+    {
+        $arr = array('000000070' => 'академический отпуск', '000000071' => 'отпуск по беременности и родам', '000000072' => 'отпуск по уходу за ребенком до достижения им возраста трех лет');
+        return $arr;
+    }
+
+
+    public function GetErrors()
+    {
+    	return parent::GetErrors();
+    }
+
+}

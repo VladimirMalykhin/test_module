@@ -1,0 +1,45 @@
+<?php
+
+include_once('validators/textLengthRange.validator');
+include_once('module/spravka1c/array.validator');
+include_once('module/spravka1c/classes/base/BaseDocument.class');
+
+class Vypiska extends BaseDocument{
+	private $type = "000000017";
+	private $place_request;
+	private $allowedStatuses = [
+		"Является студентом"
+	];
+
+
+	public function __construct($data){
+		$this->place_request = $data['place'];
+	}
+
+
+	public function Validate(){
+		parent::validateStatus($this->allowedStatuses, spravka1c::$asr1C);
+		$dataValidated = [
+			['value' => $this->place_request, 'label' => 'Место предоставления', 'validators' => [new textLengthRangeValidator(3, 150)]]
+		];
+		return parent::Validate($dataValidated);
+	}
+
+
+	public function GetData1C($diplomaId)
+	{
+
+		return [
+			'student_id' => $_SESSION['user']['zbook'], 
+			'type' => $this->type, 
+			'place_of_demand' => $this->place_request
+		];
+	}
+
+
+    public function GetErrors()
+    {
+    	return parent::GetErrors();
+    }
+
+}

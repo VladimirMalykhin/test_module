@@ -1,0 +1,551 @@
+<?php
+
+include_once(dirname(__FILE__) . '/helper');
+
+class formSpravka extends formBase
+{
+    private $formType = '';
+    private $userData = array();
+
+    public function __construct($type = '', $formType = '', $userData)
+    {
+        $this->formType = $formType;
+        $this->userData = $userData;
+        parent::__construct($type);
+    }
+
+
+    /**
+     *
+     */
+    public function StudentAdd()
+    {
+        $typeList = $this->getTypeList();
+        
+        switch ($this->formType)
+        {
+            case 'fio':
+                $this->fieldList = array(
+                    'type'  => array('type' => 'hidden', 'label' => 'Тип справки', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'file1' => array('type' => 'file', 'label' => 'Копия нового паспорта ', 'validators' => array(new fileValidator(true, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))),
+                    'file2' => array('type' => 'file', 'label' => 'Копия свидетельства о браке (о расторжении брака) ', 'validators' => array(new fileValidator(true, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))),
+                    'file3' => array('type' => 'file', 'label' => 'Заявление ', 'validators' => array(new fileValidator(true, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))),
+                );
+                break;
+            case 'surname':
+                $this->fieldList = array(
+                    'type'  => array('type' => 'hidden', 'label' => 'Тип справки', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'file1' => array('type' => 'file', 'label' => 'Копия нового паспорта ', 'validators' => array(new fileValidator(true, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))),
+                    'file2' => array('type' => 'file', 'label' => 'Копия свидетельства о браке (о расторжении брака) ', 'validators' => array(new fileValidator(true, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))),
+                    'file3' => array('type' => 'file', 'label' => 'Заявление ', 'validators' => array(new fileValidator(true, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))),
+                );
+                break;
+            case 'expel':
+                $this->fieldList = array(
+                    'type'  => array('type' => 'hidden', 'label' => 'Тип справки', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'date_dismiss'        => array('type' => 'date', 'label' => 'Дата отчисления ', 'validators' => array(new textLengthRangeValidator(3, 50)), 'attr' => array('maxlength' => '50', 'disabled' => 'disabled'))
+                );
+
+                break;
+            case 'fast_education':
+                $acceleratedList = $this->getAcceleratedList();
+                $this->fieldList = array(
+                    'type'  => array('type' => 'hidden', 'label' => 'Тип справки', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'semester' => array('type' => 'number', 'label' => 'Семестр', 'attr' => array('max' => 10, 'min' => $_SESSION['user']['semestr']), 'validators' => array(new requireValidator(), new intValidator(false))),
+                    'accelerated' => array('type' => 'select', 'selectList' => $acceleratedList, 'label' => 'Ускоренное обучение', 'validators' => array(new enumValidator(array_keys($acceleratedList)))),
+                    
+                );
+                break;
+            case 'iup':
+                $acceleratedList = $this->getAcceleratedList();
+                $this->fieldList = array(
+                    'type'  => array('type' => 'hidden', 'label' => 'Тип справки', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'semester' => array('type' => 'number', 'label' => 'Семестр', 'attr' => array('max' => 10, 'min' => 1), 'validators' => array(new requireValidator(), new intValidator(false))),
+                    'accelerated' => array('type' => 'select', 'selectList' => $acceleratedList, 'label' => 'Ускоренное обучение', 'validators' => array(new enumValidator(array_keys($acceleratedList)))),
+                    'file' => array('type' => 'file', 'label' => 'Скан документа об образовании', 'validators' => array(new fileValidator(true, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))),
+                    
+                );
+                break;
+            case 'academ':
+                $reasonList = $this->getReasonList();
+                $this->fieldList = array(
+                    'type'            => array('type' => 'hidden', 'label' => 'Тип справки', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'datefrom'        => array('type' => 'date', 'label' => 'Дата начала отпуска ', 'validators' => array(new textLengthRangeValidator(3, 50)), 'attr' => array('maxlength' => '50', 'disabled' => 'disabled')),
+                    'dateto'          => array('type' => 'date', 'label' => 'Дата окончания отпуска', 'validators' => array(new textLengthRangeValidator(3, 50)), 'attr' => array('maxlength' => '50', 'disabled' => 'disabled')),
+                    'reason'          => array('type' => 'select', 'selectList' => $reasonList, 'label' => 'В связи с', 'validators' => array(new enumValidator(array_keys($reasonList))), 'attr' => array('disabled' => 'disabled'))
+                );
+                break;
+            case 'academ_exit':
+                $reasonOutList = $this->getReasonOutList();
+                $this->fieldList = array(
+                    'type'            => array('type' => 'hidden', 'label' => 'Тип справки', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'date'        => array('type' => 'date', 'label' => 'Дата выхода из отпуска ', 'validators' => array(new textLengthRangeValidator(3, 50)), 'attr' => array('maxlength' => '50')),
+                    'express' => array('type' => 'checkbox', 'label' => 'Является ли выход досрочным? ', 'validators' => array(new boolValidator())),
+                    'reason'          => array('type' => 'select', 'selectList' => $reasonOutList, 'label' => 'Вид отпуска', 'validators' => array(new enumValidator(array_keys($reasonOutList))))
+                );
+                break;
+            case 'discount':
+                $semestersList = $this->getSemestersList();
+                $this->fieldList = array(
+                    'type'            => array('type' => 'hidden', 'label' => 'Тип справки', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'semester_begin'          => array('type' => 'select', 'selectList' => $semestersList, 'label' => 'Семестр начала действия скидки', 'validators' => array(new enumValidator(array_keys($semestersList)))),
+                    'semester_end'          => array('type' => 'select', 'selectList' => $semestersList, 'label' => 'Семестр окончания действия скидки', 'validators' => array(new enumValidator(array_keys($semestersList)))),
+                    'sum'          => array('type' => 'text', 'label' => 'Сумма оплаты за период обучения с учетом скидки', 'validators' => array(new textLengthRangeValidator(3, 50)), 'attr' => array('maxlength' => '50', 'disabled' => 'disabled')),
+                );
+                break;
+            case 'discount_social':
+                $this->getDiscountList();
+                $this->fieldList = array(
+                    'type'            => array('type' => 'hidden', 'label' => 'Тип справки', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'discount_id'          => array('type' => 'hidden', 'label' => 'Вид скидки'),
+                    'file' => array('type' => 'file', 'label' => 'Документ, подтверждающий основание', 'validators' => array(new fileValidator(true, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))),
+                );
+                break;
+            case 'obuchenie':
+                $countObuchenieList = $this->getCountObuchenieList();
+                $this->fieldList = array(
+                    'type'            => array('type' => 'hidden', 'label' => 'Тип справки', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'copy_count' => array('type' => 'select', 'selectList' => $countObuchenieList, 'label' => 'Укажите количество экземпляров справки', 'validators' => array(new enumValidator(array_keys($countObuchenieList)))),
+                    'print_birth_date' => array('type' => 'checkbox', 'label' => 'Нужно ли указать дату  рождения в справке? ', 'validators' => array(new boolValidator())),
+                    'print_format' => array('type' => 'checkbox', 'label' => 'Нужно ли указать формат обучения в справке? ', 'validators' => array(new boolValidator())),
+                    'print_profile' => array('type' => 'checkbox', 'label' => 'Нужно ли указать профиль (специализацию) в справке? ', 'validators' => array(new boolValidator())),
+                    'print_date_start' => array('type' => 'checkbox', 'label' => 'Нужно ли указывать дату начала обучения? ', 'validators' => array(new boolValidator())),
+                    'print_date_graduation' => array('type' => 'checkbox', 'label' => 'Нужно ли указывать дату окончания обучения? (дата окончания обучения указывается в формате месяц и год, в случае если вам нужна точная дата окончания, просим это указывать в поле комментарий) ', 'validators' => array(new boolValidator())),
+                    'place_request'     => array('type' => 'textarea', 'label' => 'Стандартная формулировка справки «Справка дана для предоставления по месту требования». В случае если  та организация, которая  запрашивает справку, просит вас указать другую информацию, например: Справка дана для предоставления в Пенсионный фонд.  То, в этом случаем  просим заполнить это поле, указав название организации, в соответствии с уставными документами.', 'validators' => array(new textLengthRangeValidator(0, 150))),
+                    'comment' => array('type' => 'textarea', 'label' => 'Комментарий ', 'validators' => array(new textLengthRangeValidator(0, 150))),
+                    'doc'             => array('type' => 'file', 'label' => ' ', 'validators' => array(new fileValidator(false, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff'))))
+                );
+                break;
+            case 'vypiska':
+                $this->fieldList = array(
+                    'type'            => array('type' => 'hidden', 'label' => 'Тип справки', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'place_request'     => array('type' => 'textarea', 'label' => 'Место требования', 'validators' => array(new textLengthRangeValidator(0, 150))),
+
+                );
+                break;
+            case 'personal':
+                $reasonPersonalList = $this->getReasonPersonalList();
+                $this->fieldList = array(
+                    'type'            => array('type' => 'hidden', 'label' => 'Тип заявления', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'last_name' => array('type' => 'text', 'label' => 'Фамилия', 'validators' => array(new textLengthRangeValidator(0, 150))),
+                    'first_name' => array('type' => 'text', 'label' => 'Имя', 'validators' => array(new textLengthRangeValidator(0, 150))),
+                    'middle_name' => array('type' => 'text', 'label' => 'Отчество', 'validators' => array(new textLengthRangeValidator(0, 150))),
+                    'doc_series' => array('type' => 'text', 'label' => 'Серия документа', 'validators' => array(new textLengthRangeValidator(0, 150))),
+                    'doc_number' => array('type' => 'text', 'label' => 'Номер документа', 'validators' => array(new textLengthRangeValidator(0, 150))),
+                    'doc_date'        => array('type' => 'date', 'label' => 'Дата выдачи документа', 'validators' => array(new textLengthRangeValidator(3, 50)), 'attr' => array('maxlength' => '50')),
+                    'doc_ovd' => array('type' => 'text', 'label' => 'Наименование подразделения выдавшего документ (ОВД)', 'validators' => array(new textLengthRangeValidator(0, 150))),
+                    'doc_ovd_code' => array('type' => 'text', 'label' => 'Код подразделения выдавшего документ', 'validators' => array(new textLengthRangeValidator(0, 150))),
+                    'reason' => array('type' => 'select', 'selectList' => $reasonPersonalList, 'label' => 'В связи с', 'validators' => array(new enumValidator(array_keys($reasonPersonalList)))),
+                    'doc'             => array('type' => 'file', 'label' => 'Документ, удостоверяющий личность', 'attr' => array('data-id' => '000000090'), 'validators' => array(new fileValidator(false, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))),
+                    'doc2'             => array('type' => 'file', 'label' => 'Свидетельство о смене имени', 'attr' => array('data-id' => '000000145'), 'validators' => array(new fileValidator(false, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))),
+                    'doc3'             => array('type' => 'file', 'attr' => array('data-id' => '000000010'), 'label' => 'Свидетельство о заключении брака (при наличии)', 'validators' => array(new fileValidator(false, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff')))),
+                    'doc4'             => array('type' => 'file', 'attr' => array('data-id' => '000000144'), 'label' => 'Свидетельство о расторжении брака (при наличии)', 'validators' => array(new fileValidator(false, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff'))))
+                );
+                break;
+            case 'course_theme':
+                $disciplinesList = $this->getDisciplinesCourseList();
+                $this->fieldList = array(
+                    'type' => array('type' => 'hidden', 'label' => 'Тип заявления', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'discipline' => array('type' => 'select', 'selectList' => $disciplinesList, 'label' => 'Дисциплина', 'validators' => array(new enumValidator(array_keys($disciplinesList)))),
+                    'theme' => array('type' => 'text', 'label' => 'Тема', 'validators' => array(new textLengthRangeValidator(0, 1024)))
+                );
+                break;
+            case 'course_theme_change':
+                $disciplinesList = $this->getDisciplinesCourseChangeList();
+                $choicesList = $this->getChoiceList();
+                $this->fieldList = array(
+                    'type' => array('type' => 'hidden', 'label' => 'Тип заявления', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'discipline' => array('type' => 'select', 'selectList' => $disciplinesList, 'label' => 'Дисциплина', 'validators' => array(new enumValidator(array_keys($disciplinesList)))),
+                    'choice' => array('type' => 'select', 'selectList' => $choicesList, 'label' => 'Вариант заявления', 'validators' => array(new enumValidator(array_keys($choicesList)))),
+                    'theme' => array('type' => 'text', 'label' => 'Тема', 'validators' => array(new textLengthRangeValidator(0, 1024))),
+                    'teacher' => array('type' => 'text', 'label' => 'Научный руководитель', 'attr' => array('disabled' => 'disabled'), 'validators' => array(new textLengthRangeValidator(0, 255)))
+                );
+                break;
+            case 'transfer':
+                $educationList = $this->getEducationData();
+                $this->fieldList = array(
+                    'type'  => array('type' => 'hidden', 'label' => 'Тип заявления', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'education' => array('type' => 'select', 'selectList' => $educationList, 'label' => 'Укажите уровень образования', 'validators' => array(new enumValidator(array_keys($educationList)))),
+                    'faculty' => array('type' => 'select', 'selectList' => [], 'label' => 'Укажите факультет'),
+                    'specialty' => array('type' => 'select', 'selectList' => [], 'label' => 'Укажите специальность'),
+                    'profile' => array('type' => 'select', 'selectList' => [], 'label' => 'Укажите профиль'),
+                    'education_form' => array('type' => 'select', 'selectList' => [], 'label' => 'Укажите форму обучения'),
+                    'education_format' => array('type' => 'select','selectList' => [],  'label' => 'Укажите формат обучения')
+                );
+                break;
+            case 'sign_new':
+                $this->fieldList = array(
+                    'type'  => array('type' => 'hidden', 'label' => 'Тип заявления', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'token'          => array('type' => 'text', 'label' => '', 'validators' => array(new textLengthRangeValidator(3, 10)), 'attr' => array('maxlength' => '50')),
+                );
+                break;
+            default:
+                $this->fieldList = array(
+                    'type'  => array('type' => 'hidden', 'label' => 'Тип справки', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList)))),
+                    'file1' => array('type' => 'file', 'label' => 'Отсканированная копия полученного документа ', 'validators' => array(new fileValidator(true, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff', 'zip')))),
+                );
+                break;
+        }
+    }
+
+
+    /**
+     *
+     */
+    public function StudentApply()
+    {
+        $typeList = $this->getTypeList();
+        $this->fieldList = array(
+            'type'  => array('type' => 'hidden', 'label' => 'Тип справки', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList))))
+        ); 
+        
+        switch ($this->formType)
+        {
+            case 'academ':
+                $this->fieldList = array(
+                    'file' => array('type' => 'file', 'label' => 'Документ, подтверждающий основания предоставления академического отпуска (при наличии)', 'validators' => array(new fileValidator(false, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff', 'zip'))))
+                ); 
+                break;
+
+            case 'expel':
+                $this->fieldList = array(
+                    'file' => array('type' => 'file', 'label' => 'Согласие на расторжение договора от законного представителя (для лиц, не достигших возраста 18 лет)', 'validators' => array(new fileValidator(false, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff', 'zip'))))
+                ); 
+                break;
+        }  
+           
+    }
+
+
+    /**
+     * 
+     */
+    public static function SignDocuments()
+    {
+        //$typeList = $this->getTypeList();
+        /*$this->fieldList = array(
+            'type'  => array('type' => 'hidden', 'label' => 'Тип справки', 'validators' => array(new requireValidator(), new enumValidator(array_keys($typeList))))
+        ); */
+    }
+
+
+    /**
+     * 
+     */
+    public function SignDocumentsScan()
+    {
+        //$typeList = $this->getTypeList();
+        $this->fieldList = array(
+            'doc' => array('type' => 'file', 'label' => 'Скан подписанного документа', 'validators' => array(new requireValidator(), new fileValidator(false, 3000, array('jpg', 'jpeg', 'pdf', 'gif', 'bmp', 'png', 'tiff', 'zip'))))
+        ); 
+    }
+
+
+    /**
+     * @return array
+     */
+    public static function getTypeList()
+    {
+        return spravka1cHelper::getTypeList();
+    }
+
+
+    /**
+     * @return array
+     */
+    private function getEducationData()
+    {
+        $educationList = [];
+        if(!(isset($_SESSION['user']['spravka1c']['transfer']))){
+            $educationData = spravka1c::$asr1C->GetData('get_educations_list', ['student_id' => $_SESSION['user']['zbook']]);
+            if(isset($educationData['data'])){
+                $_SESSION['user']['spravka1c']['transfer']['education'] = $educationData['data']['education_level'];
+            } else {
+                $_SESSION['user']['spravka1c']['transfer']['education'] = [];
+            }
+            
+        }
+        $educationList[''] = '';
+        foreach($_SESSION['user']['spravka1c']['transfer']['education'] as $education){
+            $educationList[$education['id']] = $education['name'];
+        }
+
+        return $educationList;
+    }
+
+
+    /**
+     * @return array
+     */
+    private function getDisciplinesCourseList()
+    {
+        $courseList = [];
+        if(!(isset($_SESSION['user']['spravka1c']['course_disciplines']))){
+            $educationData = spravka1c::$asr1C->GetData('course_works', ['student_id' => $_SESSION['user']['zbook']]);
+            if(isset($educationData['course_works'])){
+                $_SESSION['user']['spravka1c']['course_disciplines'] = $educationData['course_works'];
+            } else {
+                $_SESSION['user']['spravka1c']['course_disciplines'] = [];
+            }
+            
+        }
+        
+        foreach($_SESSION['user']['spravka1c']['course_disciplines'] as $discipline){
+            $courseList[$discipline['discipline_id']] = $discipline['discipline'] . ' - ' . $discipline['semestr'] . ' семестр';
+        }
+
+        return $courseList;
+    }
+
+
+    /**
+     * @return array
+     */
+    private function getDisciplinesCourseChangeList()
+    {
+        $courseList = [];
+        if(!(isset($_SESSION['user']['spravka1c']['course_disciplines_change']))){
+            $educationData = spravka1c::$asr1C->GetData('course_works_orders', ['student_id' => $_SESSION['user']['zbook']]);
+            if(isset($educationData['course_works'])){
+                $_SESSION['user']['spravka1c']['course_disciplines_change'] = $educationData['course_works'];
+            } else {
+                $_SESSION['user']['spravka1c']['course_disciplines_change'] = [];
+            }
+            
+        }
+
+        $courseList[''] = '';
+        
+        foreach($_SESSION['user']['spravka1c']['course_disciplines_change'] as $discipline){
+            $courseList[$discipline['discipline_id']] = $discipline['discipline'] . ' - ' . $discipline['semestr'] . ' семестр';
+        }
+
+        return $courseList;
+    }
+
+
+    /**
+     * @return array
+     */
+    public static function getSemestersList()
+    {
+        $response1C = spravka1c::$asr1C->GetData('payment_info', ['student_id' => $_SESSION['user']['zbook']]);
+        $_SESSION['user']['future_semesters'] = $response1C['payment_info'][0]['future_semesters'];
+        $semesters = [];
+        foreach($_SESSION['user']['future_semesters'] as $semester){
+            $semesters[(string)$semester['semester']] = $semester['semester'];
+        }
+        return $semesters;
+    }
+
+
+    /**
+     * @return array
+     */
+    public static function getSpecialityList()
+    {
+        $response1C = spravka1c::$asr1C->GetData('payment_info', ['student_id' => $_SESSION['user']['zbook']]);
+        $_SESSION['user']['future_semesters'] = $response1C['payment_info'][0]['future_semesters'];
+        $semesters = [];
+        foreach($_SESSION['user']['future_semesters'] as $semester){
+            $semesters[(string)$semester['semester']] = $semester['semester'];
+        }
+        return $semesters;
+    }
+
+
+    /**
+     * @return array
+     */
+    public static function getDiscountList()
+    {
+        $response1C = spravka1c::$asr1C->GetData('payment_info', ['student_id' => $_SESSION['user']['zbook']]);
+        $_SESSION['user']['all_discounts'] = $response1C['payment_info'][0]['all_discounts'];
+        $_SESSION['user']['active_discounts'] = $response1C['payment_info'][0]['active_discounts'];
+        $discounts = [];
+        foreach($_SESSION['user']['all_discounts'] as $discount){
+            $discounts[$discount['discount_id']] = $discount['discount_name'] . ' - ' . (string)$discount['discount_size'].'%';
+        }
+        return $discounts;
+    }
+
+
+    /**
+     * @return array
+     */
+    public static function getFormList($form = 'r')
+    {
+        if ($form == 'i')
+        {
+            $arr = array('заочная' => 'заочная', 'очная' => 'очная', 'очно-заочная' => 'очно-заочная');
+        }
+        else
+        {
+            $arr = array('заочной' => 'заочной', 'очной' => 'очной', 'очно-заочной' => 'очно-заочной');
+        }
+        return $arr;
+    }
+
+
+    /**
+     * @return array
+     */
+    public static function getAcceleratedList()
+    {
+        $arr = array(0 => 'нет', 1 => 'да');
+        return $arr;
+    }
+
+
+    /**
+     * @return array
+     */
+    public static function getChoiceList()
+    {
+        $arr = array('' => '', 1 => 'изменение темы', 2 => 'назначение нового руководителя', 3 => 'изменение темы и назначение нового руководителя');
+        return $arr;
+    }
+
+
+    /**
+     * @return array
+     */
+    public static function getReasonList()
+    {
+        $arr = array('000000005' => 'академический отпуск по медицинским показаниям', '000000013' => 'академический отпуск в связи с призывом на военную службу', '000000017' => 'академический отпуск в связи с семейными обстоятельствами', '000000061' => 'отпуск по беременности и родам' , '000000009' => 'отпуск по уходу за ребенком до достижения им возраста трех лет');
+        return $arr;
+    }
+
+
+    /**
+     * @return array
+     */
+    public static function getReasonPersonalList()
+    {
+        $arr = array('000000053' => 'изменением фамилии', '000000054' => 'изменением имени', '000000055' => 'изменением отчества', '000000056' => 'изменением фамилии и имени' , '000000057' => 'изменением фамилии, имени и отчества', '000000058' => 'изменением фамилии и отчества', '000000059' => 'изменением имени и отчества');
+        return $arr;
+    }
+
+
+    /**
+     * @return array
+     */
+    public static function getReasonOutList()
+    {
+        $arr = array('000000070' => 'академический отпуск', '000000071' => 'отпуск по беременности и родам', '000000072' => 'отпуск по уходу за ребенком до достижения им возраста трех лет');
+        return $arr;
+    }
+    
+
+    /**
+     * @return array
+     */
+    public static function getCountObuchenieList()
+    {
+        $arr = array(1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 5, 6 => 6, 7 => 7, 8 => 8, 9 => 9);
+        return $arr;
+    }
+
+
+    /**
+     * @return array
+     */
+    public static function getSpecList($showEmptyField = true)
+    {
+        $org = core::$id;
+        $sth = core::$db->prepare('SELECT id, name FROM `specialty` WHERE `org` = "'. $org . '" ORDER BY `name` ASC');
+        $sth->execute();
+        $data = $sth->fetchAll();
+
+        $specList = $showEmptyField ? array('0' => ''): array();
+
+        foreach ($data as $d)
+        {
+            $specList[$d['id']] = $d['name'];
+        }
+        
+        return $specList;
+    }
+    
+    /**
+     * @return array
+     */
+    public static function getFacultyList($showEmptyField = true)
+    {
+        $org = core::$id;
+        $sth = core::$db->prepare('SELECT id, name FROM `faculty` WHERE 1 ORDER BY `name` ASC');
+        $sth->execute();
+        $data = $sth->fetchAll();
+
+        $newList = $showEmptyField ? array('0' => ''): array();
+
+        foreach ($data as $d)
+        {
+            $newList[$d['id']] = $d['name'];
+        }
+        
+        return $newList;
+    }
+
+    /**
+     * @return array
+     */
+    public static function getCourseList()
+    {
+        return array('1' => 1, '2' => 2, '3' => 3, '4' => 4, '5' => 5);
+    }
+
+    /**
+     * @return array
+     */
+    public static function getCourseWList()
+    {
+        return array('первого' => 'первого', 'второго' => 'второго', 'третьего'=>'третьего', 'четвертого' => 'четвертого', 'пятого' => 'пятого');
+    }
+
+    /**
+     * @return array
+     */
+    public static function getSemesterList()
+    {
+        return array('1' => 1, '2' => 2, '3' => 3, '4' => 4, '5' => 5, '6' => 6, '7' => 7, '8' => 8, '9' => 9, '10' => 10);
+    }
+
+    /**
+     * @return array
+     */
+    public static function getSemesterWList()
+    {
+        return array(
+            'первого' => 'первого', 'второго' => 'второго', 'третьего'=>'третьего', 'четвертого' => 'четвертого', 'пятого' => 'пятого',
+            'шестого' => 'шестого', 'седьмого' => 'седьмого', 'восьмого'=>'восьмого', 'девятого' => 'девятого', 'десятого' => 'десятого'
+        );
+    }
+
+
+    /**
+     * @param $number
+     * @return mixed
+     */
+    public static function numberToWord($number)
+    {
+        $arr = array('1' => 'первого', '2' => 'второго', '3'=>'третьего', '4' => 'четвертого', '5' => 'пятого',
+            '6' => 'шестого', '7' => 'седьмого', '8'=>'восьмого', '9' => 'девятого', '10' => 'десятого');
+
+        return $arr[$number];
+    }
+
+    /**
+     * @return array
+     */
+    public static function getPostDocList()
+    {
+        return array(
+            'договор об образовании на обучение по образовательным программам высшего образования НОЧУ ВО «Московский институт психоанализа»' => 'договор об образовании на обучение по образовательным программам высшего образования НОЧУ ВО «Московский институт психоанализа» ',
+            'студенческий билет' => 'студенческий билет',
+            'диплом' => 'диплом',
+            'аттестат' => 'аттестат',
+            'справку об обучении' => 'справку об обучении'
+        );
+    }
+}

@@ -1,0 +1,21 @@
+<?php
+
+class Filetype{
+
+	private $path;
+	private $ext;
+
+
+	public function __construct($path, $ext){
+		$this->path = $path;
+		$this->ext = $ext;
+	}
+
+
+	public function toArray(){
+		return [
+			'path' => $this->path,
+			'ext' => $this->ext
+		];
+	}
+}

@@ -1,0 +1,89 @@
+<?php
+
+
+include_once('validators/textLengthRange.validator');
+include_once('validators/int.validator');
+include_once('validators/bool.validator');
+include_once('validators/enum.validator');
+include_once('validators/date.validator');
+include_once('validators/require.validator');
+include_once('validators/file.validator');
+include_once('module/spravka1c/array.validator');
+include_once('module/spravka1c/classes/base/BaseDocument.class');
+
+class Discount extends BaseDocument{
+	private $type = "000000011";
+	private $semester_start;
+	private $semester_end;
+
+	private $allowedStatuses = [
+		"Является студентом"
+	];
+
+
+	public function __construct($data){
+		$this->semester_start = $data['semester_start'];
+		$this->semester_end = $data['semester_end'];
+	}
+
+
+	public function Validate(){
+		parent::validateStatus($this->allowedStatuses, spravka1c::$asr1C);
+		$semestersList = $this->getSemestersList();
+		$dataValidated = [
+			['value' => $this->semester_start, 'label' => 'Семестр начала действия скидки', 'validators' => array(new enumValidator(array_keys($semestersList)))],
+			['value' => $this->semester_end, 'label' => 'Семестр конца действия скидки', 'validators' => array(new enumValidator(array_keys($semestersList)))]
+
+		];
+ 		
+		return parent::Validate($dataValidated);
+	}
+
+
+	public function GetData1C($diplomaId)
+	{
+
+		return [
+			'student_id' => $_SESSION['user']['zbook'], 
+			'type' => $this->type, 
+			'semester_begin' => (int)$this->semester_start, 
+			'semester_end' => (int)$this->semester_end, 
+			'sum' => $this->getSum($this->semester_start, $this->semester_end)
+		];
+	}	
+		
+    
+    /**
+     * @return array
+     */
+    private static function getSemestersList()
+    {
+        $semesters = [];
+        foreach($_SESSION['user']['future_semesters'] as $semester){
+            $semesters[(string)$semester['semester']] = $semester['semester'];
+        }
+        return $semesters;
+    }
+
+
+    /**
+     * @return array
+     */
+    public static function getSum($sem1, $sem2)
+    {
+        $sum = 0;
+        foreach($_SESSION['user']['future_semesters'] as $semesterData){
+            if($semesterData['semester'] >= $sem1 && $semesterData['semester'] <= $sem2){
+                $sum += $semesterData['price'];
+            }
+        }
+        return $sum;
+    }
+
+
+    public function GetErrors()
+    {
+    	return parent::GetErrors();
+    }
+
+}

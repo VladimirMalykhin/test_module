@@ -1,0 +1,73 @@
+<?php
+
+include_once('validators/textLengthRange.validator');
+include_once('validators/int.validator');
+include_once('validators/bool.validator');
+include_once('validators/enum.validator');
+include_once('validators/date.validator');
+include_once('validators/require.validator');
+include_once('validators/file.validator');
+include_once('module/spravka1c/array.validator');
+include_once('module/spravka1c/classes/base/BaseDocument.class');
+
+class CourseThemeChange extends BaseDocument{
+	private $type = "000000021";
+	private $discipline = "";
+	private $theme = "";
+	private $semester = 0;
+	private $choice = 0;
+	private $allowedStatuses = [
+		"Является студентом"
+	];
+
+
+	public function __construct($data){
+		$this->discipline = $data['discipline'];
+		$this->theme = $data['theme'];
+		$this->choice = (int)$data['choice'];
+	}
+
+
+	public function Validate(){
+		
+		parent::validateStatus($this->allowedStatuses, spravka1c::$asr1C);
+		$choicesList = $this->getChoiceList();
+		$dataValidated = [
+			['value' => $this->discipline, 'label' => 'Дисциплина', 'validators' => [new textLengthRangeValidator(9, 9)]],
+			['value' => $this->choice, 'label' => 'Вариант заявления', 'validators' => [new enumValidator(array_keys($choicesList))]],
+			['value' => $this->theme, 'label' => 'Тема работы', 'validators' => [new textLengthRangeValidator(10, 1024)]]
+		];
+		return parent::Validate($dataValidated);
+	}
+
+
+	/**
+     * @return array
+     */
+    private function getChoiceList()
+    {
+        $arr = array(1 => 'изменение темы', 2 => 'назначение нового руководителя', 3 => 'изменение темы и назначение нового руководителя');
+        return $arr;
+    }
+
+
+	public function GetData1C($diplomaId)
+	{
+		!($_SESSION['user']['spravka1c']['course_disciplines_change']) ? die('Системная ошибка') : null;
+		foreach ($_SESSION['user']['spravka1c']['course_disciplines_change'] as $discipline) {
+			if($discipline['discipline_id'] == $this->discipline){
+				$this->semester = $discipline['semestr'];
+				$orderId = $discipline['order_id'];
+			} 
+		}
+		($this->semester == 0) ? die('Системная ошибка') : null;
+		return ['student_id' => $_SESSION['user']['zbook'], 'type' => $this->type, 'discipline_id' => $this->discipline, 'theme' => $this->theme, 'semestr' => $this->semester, 'order_id' => $orderId, 'choice' => $this->choice];
+	}
+
+
+    public function GetErrors()
+    {
+    	return parent::GetErrors();
+    }
+
+}

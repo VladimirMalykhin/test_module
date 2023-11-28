@@ -1,0 +1,56 @@
+<?php
+
+include_once('validators/textLengthRange.validator');
+include_once('validators/int.validator');
+include_once('validators/bool.validator');
+include_once('validators/enum.validator');
+include_once('validators/date.validator');
+include_once('validators/require.validator');
+include_once('validators/file.validator');
+include_once('module/spravka1c/array.validator');
+include_once('module/spravka1c/classes/base/BaseDocument.class');
+
+class CourseTheme extends BaseDocument{
+	private $type = "000000006";
+	private $discipline = "";
+	private $theme = "";
+	private $semester = 0;
+	private $allowedStatuses = [
+		"Является студентом"
+	];
+
+
+	public function __construct($data){
+		$this->discipline = $data['discipline'];
+		$this->theme = $data['theme'];
+	}
+
+
+	public function Validate(){
+		
+		parent::validateStatus($this->allowedStatuses, spravka1c::$asr1C);
+		$dataValidated = [
+			['value' => $this->discipline, 'label' => 'Дисциплина', 'validators' => [new textLengthRangeValidator(9, 9)]],
+			['value' => $this->theme, 'label' => 'Тема работы', 'validators' => [new textLengthRangeValidator(10, 1024)]]
+		];
+		return parent::Validate($dataValidated);
+	}
+
+
+	public function GetData1C($diplomaId)
+	{
+		!($_SESSION['user']['spravka1c']['course_disciplines']) ? die('Системная ошибка') : null;
+		foreach ($_SESSION['user']['spravka1c']['course_disciplines'] as $discipline) {
+			if($discipline['discipline_id'] == $this->discipline) $this->semester = $discipline['semestr'];
+		}
+		($this->semester == 0) ? die('Системная ошибка') : null;
+		return ['student_id' => $_SESSION['user']['zbook'], 'type' => $this->type, 'discipline_id' => $this->discipline, 'theme' => $this->theme, 'semestr' => $this->semester];
+	}
+
+
+    public function GetErrors()
+    {
+    	return parent::GetErrors();
+    }
+
+}

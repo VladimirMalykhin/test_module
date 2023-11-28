@@ -1,0 +1,22 @@
+<?php
+
+include_once('module/core/form/validators/validatorBase.validator');
+
+class dateSystemValidator extends validatorBase
+{
+    public function Validate()
+    {
+        $result = false;
+
+        if ($this->value != '' && preg_match('/^\d\d\d\d\-\d\d\-\d\d$/', $this->value))
+        {
+            $result = true;
+        }
+        else
+        {
+            $this->setError('Неверный формат поля "' . $this->fieldLabel . '"');
+        }
+        return $result;
+    }
+}
+ 

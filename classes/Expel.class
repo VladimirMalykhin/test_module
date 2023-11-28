@@ -1,0 +1,53 @@
+<?php
+
+include_once('form/validators/textLengthRange.validator');
+include_once('form/validators/int.validator');
+include_once('validators/bool.validator');
+include_once('validators/enum.validator');
+include_once('validators/date.validator');
+include_once('validators/require.validator');
+include_once('validators/file.validator');
+include_once('array.validator');
+include_once('classes/base/BaseDocument.class');
+
+class Expel extends BaseDocument{
+	private $type = "000000002";
+	private $files = [];
+	private $dateDismiss;
+	private $allowedStatuses = [
+		"Является студентом"
+	];
+
+
+	public function __construct($data){
+		$this->dateDismiss = $data['data']['date_dismiss'];
+	}
+
+
+	public function Validate(){
+		parent::validateStatus($this->allowedStatuses, spravka1c::$asr1C);
+		$dataValidated = [
+
+		];
+ 		
+		return parent::Validate($dataValidated);
+	}
+
+
+	public function GetData1C($diplomaId)
+	{
+
+		return [
+			'student_id' => $_SESSION['user']['zbook'], 
+			'type' => $this->type,
+			'date_dismiss' => $this->dateDismiss,
+			'files' => $this->files];
+	}
+
+	
+    public function GetErrors()
+    {
+    	return parent::GetErrors();
+    }
+
+}

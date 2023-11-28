@@ -1,0 +1,107 @@
+<?php
+
+declare(strict_types=1);
+
+
+class BaseDocument{
+
+	public $validateErrors = array();
+	private $folder = 'documents/';
+	
+
+	public function Validate(array $data)
+	{
+		$this->validateErrors = array();
+		$noErrors = true;
+
+	    foreach ($data as $f)
+	    {
+
+	        $validators = (isset($f['validators'])) ? $f['validators'] : array();
+
+	        reset($validators);
+
+	        if (count($validators))
+	        {
+				
+		        $isValidateError = false; //есть ли ошибки текущего валидатора
+		        $countValidators = count($validators);
+		        $i = 0;
+
+		        while (!$isValidateError && $i < $countValidators)
+		        {
+		            //$v = $validators[$i];
+		            $v = current($validators);
+		            $value = isset($f['value']) ? $f['value'] : '';
+		            $v->SetValue($value);
+		            $v->SetFieldLabel($f['label']);
+
+		            
+		            if (! $v->Validate())
+		            {
+		                $isValidateError = true;
+		                $noErrors = false;
+		                $this->validateErrors[$f['label']] = $v->GetErrors();
+		            }
+		            $i++;
+		            next($validators);
+		        }
+	        }
+	    }
+
+	    return $noErrors;
+	}
+
+
+	public function genKey()
+    {
+        $map = "0123456789ABCDEFGHIJKLMNPQRSTUVWXYZ0123456789ACHKMNSTX00000000";
+        $hash=crc32(uniqid((string)mt_rand(), true))+0x100000000;
+        $str = "";
+        do {
+            $str = $map[31+ ($hash % 31)] . $str;
+            $hash /= 31;
+        } while($hash >= 1);
+
+        return $str;
+    }
+
+
+    public function moveFile($fileKey, $fileValue, $tmpName, $diplomaId)
+    {
+    	$ext = pathinfo($fileValue['name'], PATHINFO_EXTENSION);
+        $fileName = $this->genKey();
+        if(copy($tmpName, $this->folder.$diplomaId . '-' . $fileName . '.' . $ext)){
+            $fileObject = [
+                'path' => 'https://' . $this->folder.$diplomaId . '-' . $fileName . '.' . $ext,
+                'ext' => $ext
+            ];
+            return $fileObject;
+        } else {
+            die('Ошибка! Пожалуйста загрузите другой файл');
+        }
+    }
+
+
+    public function validateStatus($statuses, $asr1C)
+    {
+    	$statusStudent = $this->getStatus($asr1C);
+    	(!in_array($statusStudent, $statuses)) ? die('Системная ошибка! Обратитесь к куратору') : null;
+    }
+
+
+    private function getStatus($asr1С) //Получение статуса пользователя в 1с
+    {
+    	
+    	$response1C = $asr1С->GetData('student_status', ['student_id' => $_SESSION['user']['zbook']]);
+    	($response1C['error'] == true) ? die('Системная ошибка! Обратитесь к куратору') : null;
+    	return $response1C['student_status'];
+    }
+
+
+	public function GetErrors()
+	{
+		return $this->validateErrors;
+	}
+
+}

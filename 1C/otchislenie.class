@@ -1,0 +1,30 @@
+<?php
+
+class Otchislenie{
+
+	private $url = '/instudy/doc';
+	private $method = 'POST';
+	private $studentId;
+	private $type;
+	private $dateDismiss;
+	private $files;
+
+
+	public function __construct($studentId, $type, $dateDismiss, $files){
+		$this->studentId = $studentId;
+		$this->type = $type;
+		$this->dateDismiss = $dateDismiss;
+		$this->files = $files;
+	}
+
+
+	public function toArray(){
+		return [
+			'student_id' => $this->studentId,
+			'type' => $this->type,
+			'date_dismiss' => $this->dateDismiss,
+			'files' => $this->files
+		];
+	}
+
+}
